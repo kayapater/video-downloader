@@ -3,7 +3,6 @@
 <div align="center">
 
 [![GitHub release](https://img.shields.io/github/release/kayapater/video-downloader.svg)](https://github.com/kayapater/video-downloader/releases/latest)
-[![GitHub downloads](https://img.shields.io/github/downloads/kayapater/video-downloader/total.svg)](https://github.com/kayapater/video-downloader/releases)
 [![GitHub stars](https://img.shields.io/github/stars/kayapater/video-downloader.svg)](https://github.com/kayapater/video-downloader/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
