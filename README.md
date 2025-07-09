@@ -31,7 +31,6 @@
 | Download Option | Size | Description |
 |----------------|------|-------------|
 | **[Setup Installer](https://github.com/kayapater/video-downloader/releases/latest/download/VideoDownloader-v1.2.0-Setup.exe)** | ~52MB | Full installer with auto-updates |
-required |
 | **[Source Code](https://github.com/kayapater/video-downloader/archive/refs/heads/main.zip)** | ~2MB | Build from source (MIT License) |
 
 ---
