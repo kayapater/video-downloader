@@ -27,8 +27,8 @@
 
 | Download Option | Size |
 |----------------|------|
-| **[Setup Installer](https://github.com/kayapater/video-downloader/releases/latest/download/VideoDownloader-v1.3.1-Setup.exe)** | ~180MB |
-| **[Source Code](https://github.com/kayapater/video-downloader/archive/refs/heads/main.zip)** | ~2MB |
+| **[Setup Installer](https://github.com/kayapater/video-downloader/releases/latest/download/VideoDownloader-v1.3.1-Setup.exe)** | 181 MB |
+| **[Source Code](https://github.com/kayapater/video-downloader/archive/refs/heads/main.zip)** | 128 KB |
 
 ---
 
