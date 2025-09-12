@@ -9,7 +9,7 @@
 
 **Professional video downloader supporting 1000+ platforms with 4K quality support.**
 
-[📥 Download Latest Release](https://github.com/kayapater/video-downloader/releases/latest) • [🌐 Visit Website](https://downloader.kayapater.xyz) • [🐛 Report Bug](https://github.com/kayapater/video-downloader/issues)
+[📥 Download Latest Release](https://github.com/kayapater/video-downloader/releases/latest) • [🌐 Visit Website](https://downloader.kayapater.com.tr) • [🐛 Report Bug](https://github.com/kayapater/video-downloader/issues)
 
 </div>
 
