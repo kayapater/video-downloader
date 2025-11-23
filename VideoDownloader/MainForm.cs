@@ -336,8 +336,8 @@ namespace VideoDownloader
                 },
                 ["AppDescription"] = new Dictionary<AppLanguage, string>
                 {
-                    [AppLanguage.Turkish] = "Video İndirici v1.3.1\n\nYouTube, Twitter ve Instagram'dan video indirme aracı",
-                    [AppLanguage.English] = "Video Downloader v1.3.1\n\nDownload videos from YouTube, Twitter and Instagram"
+                    [AppLanguage.Turkish] = "Video İndirici v1.3.2\n\nYouTube, Twitter ve Instagram'dan video indirme aracı",
+                    [AppLanguage.English] = "Video Downloader v1.3.2\n\nDownload videos from YouTube, Twitter and Instagram"
                 },
                 ["Developer"] = new Dictionary<AppLanguage, string>
                 {
@@ -1555,6 +1555,9 @@ Technologies:
         {
             try
             {
+                // PATH'i yeniden oku (Registry'den)
+                RefreshEnvironmentPath();
+                
                 var processInfo = new ProcessStartInfo
                 {
                     FileName = "ffmpeg",
@@ -1581,6 +1584,31 @@ Technologies:
             }
 
             return false;
+        }
+        
+        private void RefreshEnvironmentPath()
+        {
+            try
+            {
+                // Sistem PATH'ini oku
+                var machinePath = Registry.GetValue(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment", "Path", "") as string;
+                
+                // Kullanıcı PATH'ini oku
+                var userPath = Registry.GetValue(@"HKEY_CURRENT_USER\Environment", "Path", "") as string;
+                
+                // Birleştir ve mevcut process'e uygula
+                var combinedPath = machinePath;
+                if (!string.IsNullOrEmpty(userPath))
+                {
+                    combinedPath = combinedPath + ";" + userPath;
+                }
+                
+                Environment.SetEnvironmentVariable("PATH", combinedPath, EnvironmentVariableTarget.Process);
+            }
+            catch (Exception ex)
+            {
+                LogMessage($"PATH yenileme hatası: {ex.Message}", Color.Orange);
+            }
         }
 
         private async Task<bool> CheckPythonInstalled()
@@ -1774,20 +1802,30 @@ Technologies:
                 var selectedHeight = GetSelectedHeightFromIndex(qualityComboBox.SelectedIndex);
                 if (selectedHeight == 0) return true;
 
+                // Daha kapsamlı kalite kontrolü
                 var lines = output.Split('\n');
                 foreach (var line in lines)
                 {
-                    if (line.Contains($"{selectedHeight}p") || line.Contains($"{selectedHeight}x"))
+                    // Farklı format gösterimlerini kontrol et
+                    // Örnek: "1920x1080", "1080p", "x1080", "height=1080"
+                    if (line.Contains($"{selectedHeight}p") || 
+                        line.Contains($"x{selectedHeight}") || 
+                        line.Contains($"{selectedHeight}x") ||
+                        line.Contains($"height={selectedHeight}") ||
+                        System.Text.RegularExpressions.Regex.IsMatch(line, $@"\b{selectedHeight}\b"))
                     {
+                        LogMessage($"✅ Kalite bulundu: {selectedHeight}p - {line.Trim()}", Color.LimeGreen);
                         return true;
                     }
                 }
 
+                LogMessage($"⚠️ Kalite bulunamadı: {selectedHeight}p", Color.Orange);
                 return false;
             }
-            catch
+            catch (Exception ex)
             {
-                return true;
+                LogMessage($"Kalite kontrolü hatası: {ex.Message}", Color.Orange);
+                return true; // Hata durumunda indirmeye devam et
             }
         }
 
@@ -1814,16 +1852,19 @@ Technologies:
                 return "--extract-audio --audio-format mp3 --audio-quality 0";
             }
             
+            // Kalite seçimi: Önce tam istenen kaliteyi dene, yoksa en yakınını al
+            // Format: bestvideo[height=X] = tam X yüksekliğinde en iyi video
+            // Fallback: bestvideo[height<=X] = X'e kadar olan en iyi
             return qualityComboBox.SelectedIndex switch
             {
-                0 => "--format \"(bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio)/best[ext=mp4]/best\"",
-                1 => "--format \"(bestvideo[height=2160][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=2160]+bestaudio)\"",
-                2 => "--format \"(bestvideo[height=1440][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=1440]+bestaudio)\"",
-                3 => "--format \"(bestvideo[height=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=1080]+bestaudio)\"",
-                4 => "--format \"(bestvideo[height=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=720]+bestaudio)\"",
-                5 => "--format \"(bestvideo[height=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=480]+bestaudio)\"",
-                6 => "--format \"(bestvideo[height=360][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=360]+bestaudio)\"",
-                _ => "--format \"(bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio)/best\""
+                0 => "--format \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best\"",
+                1 => "--format \"bestvideo[height=2160][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=2160]+bestaudio/bestvideo[height<=2160][ext=mp4]+bestaudio/best\"",
+                2 => "--format \"bestvideo[height=1440][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=1440]+bestaudio/bestvideo[height<=1440][ext=mp4]+bestaudio/best\"",
+                3 => "--format \"bestvideo[height=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=1080]+bestaudio/bestvideo[height<=1080][ext=mp4]+bestaudio/best\"",
+                4 => "--format \"bestvideo[height=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=720]+bestaudio/bestvideo[height<=720][ext=mp4]+bestaudio/best\"",
+                5 => "--format \"bestvideo[height=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=480]+bestaudio/bestvideo[height<=480][ext=mp4]+bestaudio/best\"",
+                6 => "--format \"bestvideo[height=360][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=360]+bestaudio/bestvideo[height<=360][ext=mp4]+bestaudio/best\"",
+                _ => "--format \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best\""
             };
         }
 
@@ -1843,23 +1884,82 @@ Technologies:
                 {
                     var fileInfo = new FileInfo(videoFile);
                     var fileSizeMB = fileInfo.Length / (1024.0 * 1024.0);
+                    var fileName = Path.GetFileName(videoFile);
 
-                    if (fileSizeMB > 50)
+                    // FFprobe ile gerçek çözünürlüğü kontrol et
+                    string actualResolution = await GetVideoResolution(videoFile);
+                    
+                    if (!string.IsNullOrEmpty(actualResolution))
                     {
-                        statusLabel.Text = $"✅ Yüksek kalite video indirildi ({fileSizeMB:F1} MB)";
-                    }
-                    else if (fileSizeMB > 10)
-                    {
-                        statusLabel.Text = $"📊 Orta kalite video indirildi ({fileSizeMB:F1} MB)";
+                        var selectedQuality = GetSelectedQuality();
+                        statusLabel.Text = $"✅ Video indirildi: {actualResolution} ({fileSizeMB:F1} MB)";
+                        LogMessage($"İndirilen video: {fileName}", Color.LimeGreen);
+                        LogMessage($"Seçilen kalite: {selectedQuality}", Color.Cyan);
+                        LogMessage($"Gerçek çözünürlük: {actualResolution}", Color.Cyan);
+                        LogMessage($"Dosya boyutu: {fileSizeMB:F1} MB", Color.Cyan);
                     }
                     else
                     {
-                        statusLabel.Text = $"⚠️ Düşük kalite veya ses dosyası ({fileSizeMB:F1} MB)";
+                        // FFprobe yoksa dosya boyutuna göre tahmin et
+                        if (fileSizeMB > 50)
+                        {
+                            statusLabel.Text = $"✅ Yüksek kalite video indirildi ({fileSizeMB:F1} MB)";
+                        }
+                        else if (fileSizeMB > 10)
+                        {
+                            statusLabel.Text = $"📊 Orta kalite video indirildi ({fileSizeMB:F1} MB)";
+                        }
+                        else
+                        {
+                            statusLabel.Text = $"⚠️ Düşük kalite veya ses dosyası ({fileSizeMB:F1} MB)";
+                        }
                     }
                     break;
                 }
             }
             catch { }
+        }
+
+        private async Task<string> GetVideoResolution(string videoPath)
+        {
+            try
+            {
+                // FFprobe kullanarak video çözünürlüğünü al
+                var processInfo = new ProcessStartInfo
+                {
+                    FileName = "ffprobe",
+                    Arguments = $"-v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 \"{videoPath}\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using var process = new Process { StartInfo = processInfo };
+                process.Start();
+                var output = await process.StandardOutput.ReadToEndAsync();
+                await Task.Run(() => process.WaitForExit());
+
+                if (process.ExitCode == 0 && !string.IsNullOrEmpty(output))
+                {
+                    var resolution = output.Trim();
+                    // Örnek output: "1920x1080"
+                    if (resolution.Contains("x"))
+                    {
+                        var parts = resolution.Split('x');
+                        if (parts.Length == 2 && int.TryParse(parts[1], out int height))
+                        {
+                            return $"{resolution} ({height}p)";
+                        }
+                        return resolution;
+                    }
+                }
+            }
+            catch
+            {
+                // FFprobe yoksa veya hata varsa boş string dön
+            }
+            return "";
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -1898,7 +1998,7 @@ Technologies:
             await CheckCriticalDependencies();
 
             statusLabel.Text = GetText("Ready") + " - " + GetText("DevelopedBy");
-            LogMessage("Video Downloader v1.3.1 başlatıldı", Color.LimeGreen);
+            LogMessage("Video Downloader v1.3.2 başlatıldı", Color.LimeGreen);
         }
 
         private async Task CheckCriticalDependencies()
