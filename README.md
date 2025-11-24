@@ -32,7 +32,7 @@
 | Download Option | Size | Description |
 |----------------|------|-------------|
 | **[Setup Installer](https://github.com/kayapater/video-downloader/releases/latest/download/VideoDownloader-v1.3.2-Setup.exe)** | 181 MB | Full installer with auto-updates & FFmpeg |
-| **[Winget Package](https://github.com/kayapater/video-downloader#-installation-via-winget)** | Auto | Install via Windows Package Manager |
+
 | **[Source Code](https://github.com/kayapater/video-downloader/archive/refs/heads/main.zip)** | 124 KB | Build from source (MIT License) |
 
 ---
@@ -71,33 +71,6 @@
 - **🔧 Automatic Dependencies** - Auto-installs required components (yt-dlp, FFmpeg)
 - **⚡ Smart FFmpeg Integration** - Automatic FFmpeg installation and PATH configuration (v1.3.2+)
 - **📱 Responsive Design** - Works perfectly on all screen sizes
-- **🔄 Auto-Updates** - Keep your app updated automatically (installer version)
-
-
-
----
-
-## 📦 Installation via Winget
-
-Install Video Downloader easily using Windows Package Manager:
-
-```powershell
-winget install kayapater.VideoDownloader
-```
-
-**Benefits:**
-- ✅ Automatic updates through Winget
-- ✅ No manual downloads needed
-- ✅ Verified by Microsoft
-- ✅ One-command installation
-
----
-
-## 📖 How to Use
-
-1. **📋 Copy Video URL** - Copy the URL from YouTube, Twitter, or Instagram
-2. **📝 Paste in App** - Paste the URL into the application
-3. **⚙️ Select Quality** - Choose your preferred video quality and format
 4. **📁 Choose Location** - Select where to save the downloaded video
 5. **🚀 Download** - Click download and enjoy your video!
 
