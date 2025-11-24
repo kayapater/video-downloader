@@ -19,7 +19,7 @@
 
 ## 🚨 Windows SmartScreen Notice
 
-> **As a new open-source application, Windows may show a security warning on first run.** This is normal for apps without expensive commercial certificates ($300-600/year). 
+> **As a new open-source application, Windows may show a security warning on first run.** This is normal for apps without expensive commercial certificates.
 > 
 > **To run:** Click "More info" → "Run anyway"
 > 
