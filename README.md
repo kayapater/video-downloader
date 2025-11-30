@@ -1,4 +1,4 @@
-# Video Downloader v1.3.3
+# Video Downloader
 
 <div align="center">
 
@@ -10,6 +10,7 @@
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2B-blue)](https://www.microsoft.com/windows)
 [![Release](https://img.shields.io/badge/Release-v1.3.3-green)](https://github.com/kayapater/video-downloader/releases)
+[![Downloads](https://img.shields.io/github/downloads/kayapater/video-downloader/total?label=Downloads&color=blue)](https://github.com/kayapater/video-downloader/releases)
 
 </div>
 
