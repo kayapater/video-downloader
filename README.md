@@ -1,220 +1,219 @@
-# 🎬 4K Video Downloader
+# Video Downloader v1.3.3
 
 <div align="center">
 
-[![GitHub release](https://img.shields.io/github/release/kayapater/video-downloader.svg)](https://github.com/kayapater/video-downloader/releases/latest)
-[![GitHub downloads](https://img.shields.io/github/downloads/kayapater/video-downloader/total.svg)](https://github.com/kayapater/video-downloader/releases)
-[![GitHub stars](https://img.shields.io/github/stars/kayapater/video-downloader.svg)](https://github.com/kayapater/video-downloader/stargazers)
+![Video Downloader](VideoDownloader/logo.png)
+
+**Modern and user-friendly video downloader**
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
-[![Platform](https://img.shields.io/badge/Platform-Windows-blue.svg)](https://www.microsoft.com/windows)
-
-**Professional video downloader for YouTube, Twitter, and Instagram with 4K quality support.**
-
-[📥 Download Latest Release](https://github.com/kayapater/video-downloader/releases/latest) • [🐛 Report Bug](https://github.com/kayapater/video-downloader/issues) • [💡 Request Feature](https://github.com/kayapater/video-downloader/discussions)
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%2B-blue)](https://www.microsoft.com/windows)
+[![Release](https://img.shields.io/badge/Release-v1.3.3-green)](https://github.com/kayapater/video-downloader/releases)
 
 </div>
 
 ---
 
-## 🚨 Windows SmartScreen Notice
+## 📝 Description
 
-> **As a new open-source application, Windows may show a security warning on first run.** This is normal for apps without expensive commercial certificates.
-> 
-> **To run:** Click "More info" → "Run anyway"
-> 
-> We prioritize **transparency and open source** over expensive certificates. Our code is fully available for review!
+Video Downloader is a powerful and user-friendly Windows application that allows you to download videos from YouTube, Twitter, Instagram, TikTok, Facebook, and 50+ platforms.
 
----
+### ✨ What's New in v1.3.3
 
-## 🚀 Quick Download
+#### 🔧 Installer Improvements
+- ✅ **WiX Toolset** based MSI installer (official Microsoft technology)
+- ✅ Full **winget** support with automatic PATH management
+- ✅ Automatic upgrade support for future versions
+- ✅ Clean and complete uninstall process
+- ✅ Improved dependency management
 
-| Download Option | Size | Description |
-|----------------|------|-------------|
-| **[Setup Installer](https://github.com/kayapater/video-downloader/releases/latest/download/VideoDownloader-v1.3.2-Setup.exe)** | 181 MB | Full installer with auto-updates & FFmpeg |
+### 🎯 Features
 
-| **[Source Code](https://github.com/kayapater/video-downloader/archive/refs/heads/main.zip)** | 124 KB | Build from source (MIT License) |
+#### 📹 Video Downloading
+- 50+ platform support (YouTube, Twitter, Instagram, TikTok, Facebook, etc.)
+- Multiple quality options (360p - 4K)
+- Audio extraction (MP3)
+- Subtitle download support
+- Playlist support
 
----
+#### 🎨 User Interface
+- Modern and clean design
+- Dark and light theme
+- Turkish and English language support
+- Simple and clear progress display
 
-## ✨ Features
+#### ⚙️ Technical
+- .NET 8.0 Windows Forms
+- yt-dlp (Python video download module)
+- FFmpeg (video/audio processing)
+- Automatic dependency management
 
-<div align="center">
+### 📦 Installation
 
-| 🎯 **4K Quality** | 🌐 **Multi-Platform** | 📝 **Subtitles** | 📊 **Real-Time** |
-|:---:|:---:|:---:|:---:|
-| Download videos in stunning 4K, 1080p, 720p quality | YouTube, Twitter, Instagram support | Download subtitles in multiple languages | Live progress tracking with speed monitoring |
+#### Via Winget (Recommended)
 
-| 🌍 **Multi-Language** | 🎨 **Modern UI** | 🔒 **Privacy First** | ⚡ **Performance** |
-|:---:|:---:|:---:|:---:|
-| English and Turkish interface | Light/Dark themes, Windows 11 design | No data collection, 100% local processing | Lightning-fast downloads, minimal resources |
+**Install:**
+```powershell
+winget install kayapater.VideoDownloader
+```
 
-</div>
+**Specific version:**
+```powershell
+winget install kayapater.VideoDownloader --version 1.3.3
+```
 
-### 🔥 Core Features
+**Upgrade:**
+```powershell
+winget upgrade kayapater.VideoDownloader
+```
 
-- **🎯 4K Ultra HD Downloads** - Support for 4K, 1080p, 720p, 480p, and 360p quality
-- **🌐 Multi-Platform Support** - YouTube videos/playlists, Twitter videos/GIFs, Instagram videos/reels/IGTV
-- **📝 Subtitle Downloads** - Automatic subtitle detection and download in multiple languages
-- **📊 Real-Time Progress** - Live download progress, transfer speed, and time remaining
-- **🌍 Multi-Language Interface** - Full support for English and Turkish with easy switching
-- **🎨 Modern Design** - Beautiful light and dark themes with Windows 11 design compliance
-- **🔒 Privacy & Security** - Zero data collection, local processing only, open source transparency
-- **⚡ Performance Optimized** - Minimal resource usage, background processing, efficient memory management
+**Uninstall:**
+```powershell
+winget uninstall kayapater.VideoDownloader
+```
 
-### 🛠️ Advanced Features
+**Silent installation (winget):**
+```powershell
+winget install kayapater.VideoDownloader --silent --accept-package-agreements --accept-source-agreements
+```
 
-- **📁 Custom Download Paths** - Choose where to save your downloads
-- **🎵 Audio Extraction** - Extract audio as MP3 from videos  
-- **📋 Batch Downloads** - Download multiple videos simultaneously
-- **🔄 Format Conversion** - Convert between different video formats
-- **🔧 Automatic Dependencies** - Auto-installs required components (yt-dlp, FFmpeg)
-- **⚡ Smart FFmpeg Integration** - Automatic FFmpeg installation and PATH configuration (v1.3.2+)
-- **📱 Responsive Design** - Works perfectly on all screen sizes
-4. **📁 Choose Location** - Select where to save the downloaded video
-5. **🚀 Download** - Click download and enjoy your video!
+#### Manual Installation
 
-### 💡 Pro Tips
+1. Download `VideoDownloader-v1.3.3-Setup.msi` from [Releases](https://github.com/kayapater/video-downloader/releases/latest)
+2. Run the MSI file
+3. Follow the installation wizard
+4. Required dependencies will be installed automatically
 
-- **🎬 Playlist Support**: Paste a YouTube playlist URL to download all videos
-- **📝 Subtitle Downloads**: Enable subtitle downloads in settings for educational content
-- **🎵 Audio Only**: Use audio extraction for music or podcasts
-- **🌙 Dark Mode**: Switch to dark theme for comfortable night usage
-- **🔄 Batch Downloads**: Add multiple URLs for simultaneous downloads
+**Silent installation (MSI):**
+```powershell
+# Completely silent
+msiexec /i VideoDownloader-v1.3.3-Setup.msi /quiet /norestart
 
----
+# With progress bar
+msiexec /i VideoDownloader-v1.3.3-Setup.msi /passive /norestart
+```
 
-## 🔒 Security & Trust
+### 🛠️ Development
 
-### 🛡️ Why Open Source?
+#### Requirements
 
-We believe in **transparency over certificates**. Here's why we chose the open source approach:
+- Visual Studio 2022 or JetBrains Rider
+- .NET 8.0 SDK
+- Windows 10 SDK (10.0.19041.0)
 
-| 🔓 **Open Source Benefits** | 💰 **Commercial Certificates** |
-|:---|:---|
-| ✅ **Full Transparency** - See exactly what you're downloading | ❌ **Black Box** - No visibility into what the app does |
-| ✅ **Community Reviewed** - Hundreds of developers can review the code | ❌ **Trust Based** - You have to trust the company |
-| ✅ **No Vendor Lock-in** - Direct relationship with developers | ❌ **Corporate Control** - Company controls your experience |
-| ✅ **Faster Updates** - No store approval delays | ❌ **Slow Updates** - Wait for store approvals |
-| ✅ **Cost Effective** - $0 vs $300-600/year for certificates | ❌ **Expensive** - High annual certification costs |
+#### Building the Project
 
-### 🔐 Security Features
+```powershell
+# Clone
+git clone https://github.com/kayapater/video-downloader.git
+cd video-downloader
 
-- **🚫 Zero Telemetry** - No data collection or tracking
-- **🏠 Local Processing** - All operations happen on your computer
-- **🔍 Source Available** - Full source code review possible
-- **🔄 GitHub Verified** - Built and signed through GitHub Actions
-- **🛡️ Regular Updates** - Security patches delivered quickly
+# Restore dependencies
+dotnet restore
 
----
+# Debug build
+dotnet build -c Debug
 
-## 📋 System Requirements
+# Release build
+dotnet build -c Release
 
-| Component | Requirement |
-|-----------|-------------|
-| **Operating System** | Windows 10 version 1809 or later, Windows 11 (recommended) |
-| **.NET Runtime** | .NET 8.0 (auto-installed with setup) |
-| **Memory** | 512 MB RAM minimum, 1 GB recommended |
-| **Storage** | 500 MB free disk space |
-| **Internet** | Required for downloading videos |
-| **Dependencies** | Python 3.11, yt-dlp, FFmpeg (auto-installed) |
+# Publish (self-contained)
+dotnet publish -c Release -r win-x64 --self-contained false
+```
 
----
+#### Creating MSI Installer
 
-## 🤝 Contributing
+```powershell
+cd WixInstaller
 
-We welcome contributions from the community! Here's how you can help:
+# Create images
+.\create-placeholder-images.ps1
 
-### 🐛 Bug Reports
-Found a bug? [Create an issue](https://github.com/kayapater/video-downloader/issues/new?template=bug_report.md) with:
-- Steps to reproduce
-- Expected vs actual behavior
-- System information
-- Screenshots if applicable
+# Download Python installer
+Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.13.5/python-3.13.5-amd64.exe" -OutFile "python-3.13.5-amd64.exe"
 
-### 💡 Feature Requests
-Have an idea? [Start a discussion](https://github.com/kayapater/video-downloader/discussions/new?category=ideas) about:
-- What problem it solves
-- How it should work
-- Why it's valuable
+# Build MSI
+.\build.ps1 -DownloadPython
+```
 
-### 🔧 Code Contributions
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+For detailed information: [WixInstaller/README.md](WixInstaller/README.md)
+
+### 🌍 Supported Platforms
+
+<details>
+<summary>50+ Platform List (Click to expand)</summary>
+
+#### 📺 Main Platforms
+- YouTube
+- Instagram
+- TikTok
+- Twitter/X
+- Facebook
+- Twitch
+- Vimeo
+- Dailymotion
+- Reddit
+- LinkedIn
+
+#### 🎵 Music Platforms
+- SoundCloud
+- Bandcamp
+- Mixcloud
+
+#### 📚 Education Platforms
+- Udemy
+- Coursera
+- Khan Academy
+
+#### 🌏 International
+- Bilibili
+- Niconico
+- VK
+- Odnoklassniki
+
+And many more...
+
+</details>
+
+### 📸 Screenshots
+
+*(Screenshots will be added)*
+
+### 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork this repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-### 📝 Documentation
-Help improve our documentation:
-- Fix typos or unclear instructions
-- Add usage examples
-- Translate to other languages
-- Write tutorials or guides
+### 📄 License
 
----
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## 🌟 Community
+### 👤 Developer
 
-### 💬 Get Support
-- **🐛 Bug Reports**: [GitHub Issues](https://github.com/kayapater/video-downloader/issues)
-- **💡 Feature Requests**: [GitHub Discussions](https://github.com/kayapater/video-downloader/discussions)
-- **❓ Questions**: [GitHub Discussions Q&A](https://github.com/kayapater/video-downloader/discussions/categories/q-a)
+**kayapater**
 
-### 📊 Project Stats
-- **⭐ Stars**: Growing community support
-- **🍴 Forks**: Active development contributions  
-- **📥 Downloads**: Thousands of satisfied users
-- **🐛 Issues**: Responsive bug fixing
-- **💬 Discussions**: Active community engagement
+- Twitter/X: [@kayapater](https://x.com/kayapater)
+- GitHub: [@kayapater](https://github.com/kayapater)
 
----
+### 🙏 Acknowledgments
 
----
-
-## 📄 Legal & Compliance
-
-### 📜 License
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
-### ⚖️ Disclaimer
-This tool is intended for downloading content you have permission to download. Users are responsible for complying with:
-- Platform terms of service
-- Copyright laws
-- Local regulations
-- Fair use guidelines
-
-### 🛡️ Privacy Policy
-- **No data collection**: We don't collect any personal information
-- **No tracking**: No analytics or telemetry
-- **Local processing**: All operations happen on your device
-- **Open source**: Full transparency in code and practices
-
----
-
-## ❤️ Acknowledgments
-
-Special thanks to:
-- **🐍 yt-dlp team** - For the powerful download engine
-- **🎬 FFmpeg team** - For video processing capabilities
-- **🏠 .NET team** - For the amazing development framework
-- **🌟 Community contributors** - For bug reports, suggestions, and code contributions
-- **💡 Open source community** - For inspiration and best practices
-
----
-
-## 📞 Contact
-
-- **👨‍💻 Developer**: kayapater
-- **🐛 Bug Reports**: [GitHub Issues](https://github.com/kayapater/video-downloader/issues)
-- **💬 Discussions**: [GitHub Discussions](https://github.com/kayapater/video-downloader/discussions)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Video download engine
+- [FFmpeg](https://ffmpeg.org/) - Video/audio processing
+- [Newtonsoft.Json](https://www.newtonsoft.com/json) - JSON processing
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by the open source community**
+**Made with ❤️ by kayapater**
 
-[⭐ Star this project](https://github.com/kayapater/video-downloader/stargazers) • [🍴 Fork it](https://github.com/kayapater/video-downloader/fork) • [📥 Download](https://github.com/kayapater/video-downloader/releases/latest)
+⭐ Star this repo if you find it helpful!
 
-</div> 
+</div>
+
