@@ -16,18 +16,25 @@
 
 ---
 
-## 📝 Description
-
 Video Downloader is a powerful and user-friendly Windows application that allows you to download videos from YouTube, Twitter, Instagram, TikTok, Facebook, and 50+ platforms.
+
+### ✨ What's New in v1.4.0
+
+- **System Check** - Verify dependencies from Settings menu
+- **Auto yt-dlp** - Automatically installs on startup if missing
+- **Twitch & Kick** - Fixed download issues
+- **New UI** - Modernized interface design
+
+---
 
 ### ✨ What's New in v1.3.3
 
 #### 🔧 Installer Improvements
-- ✅ **WiX Toolset** based MSI installer (official Microsoft technology)
-- ✅ Full **winget** support with automatic PATH management
-- ✅ Automatic upgrade support for future versions
-- ✅ Clean and complete uninstall process
-- ✅ Improved dependency management
+-  **WiX Toolset** based MSI installer (official Microsoft technology)
+-  Full **winget** support with automatic PATH management
+-  Automatic upgrade support for future versions
+-  Clean and complete uninstall process
+-  Improved dependency management
 
 ### 🎯 Features
 
