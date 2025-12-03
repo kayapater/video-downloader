@@ -2,210 +2,308 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
 namespace VideoDownloader
 {
-    public enum AppLanguage
-    {
-        Turkish,
-        English
-    }
-
-    public enum AppTheme
-    {
-        Light,
-        Dark
-    }
-
     public partial class MainForm : Form
     {
-        private DateTime downloadStartTime;
-        private long totalBytes = 0;
-        private long downloadedBytes = 0;
-        private AppLanguage currentLanguage = AppLanguage.Turkish;
-        private AppTheme currentTheme = AppTheme.Light;
         private Dictionary<string, Dictionary<AppLanguage, string>> translations;
-        private MenuStrip mainMenuStrip;
-        private bool isVideoMode = true;
-        private Process currentDownloadProcess;
+        private AppLanguage currentLanguage = AppLanguage.Turkish;
+        private AppTheme currentTheme = AppTheme.Dark;  // Varsayılan dark tema
+        private MenuStrip? mainMenuStrip;
+        private Process? currentDownloadProcess;
         private bool isPaused = false;
         private bool isCancelled = false;
+        private bool isVideoMode = true;
+        private DateTime downloadStartTime;
+
+        // Preview için
+        private CancellationTokenSource? previewCancellationTokenSource;
+        private readonly HttpClient httpClient = new HttpClient();
+        private string lastPreviewUrl = "";
+
+        // Modern UI Colors - Improved Palette
+        private readonly Color primaryColor = Color.FromArgb(99, 102, 241);      // Indigo-500 (daha canlı)
+        private readonly Color successColor = Color.FromArgb(34, 197, 94);       // Green-500 (daha parlak)
+        private readonly Color dangerColor = Color.FromArgb(239, 68, 68);        // Red-500
+        private readonly Color grayColor = Color.FromArgb(107, 114, 128);        // Gray-500
+        private readonly Color lightBgColor = Color.FromArgb(249, 250, 251);     // Gray-50 (yumuşak beyaz)
+        private readonly Color darkBgColor = Color.FromArgb(24, 24, 27);         // Zinc-900 (daha koyu, kontrastlı)
+
+        private enum AppLanguage { Turkish, English }
+        private enum AppTheme { Light, Dark }
 
         public MainForm()
         {
-            InitializeComponent();
             InitializeTranslations();
             LoadSettings();
-            InitializeAboutMenu();
+            InitializeComponent();
             InitializeDefaultValues();
-            ApplyTheme();
+            InitializeAboutMenu();
             ApplyLanguage();
+            ApplyTheme();
         }
 
         private void InitializeDefaultValues()
         {
+            // Default download path
+            string defaultPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Downloads",
+                "VideoDownloader"
+            );
+            pathTextBox.Text = defaultPath;
+
+            // Quality options
+            qualityComboBox.Items.Clear();
+            qualityComboBox.Items.AddRange(new object[]
+            {
+                currentLanguage == AppLanguage.Turkish ? "En İyi Kalite" : "Best Quality",
+                "2160p (4K)",
+                "1440p (2K)",
+                "1080p (Full HD)",
+                "720p (HD)",
+                "480p (SD)",
+                "360p"
+            });
             qualityComboBox.SelectedIndex = 0;
-            videoRadioButton.Checked = true;
+
+            // Default to video mode
             isVideoMode = true;
-            pathTextBox.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "Video Downloader");
+            UpdateFormatButtons();
+
+            // Hide progress panel initially
+            progressPanel.Visible = false;
         }
 
-        private void ChangeLanguage(AppLanguage newLanguage)
+        private void UpdateFormatButtons()
         {
-            currentLanguage = newLanguage;
-            SaveSettings();
+            Color bgInput = Color.FromArgb(39, 39, 42);      // Zinc-800 (daha parlak)
+            Color textMuted = Color.FromArgb(212, 212, 216); // Zinc-300 (daha okunabilir)
+            Color primaryBtn = Color.FromArgb(99, 102, 241); // Indigo-500
+
+            if (isVideoMode)
+            {
+                videoFormatButton.BackColor = primaryBtn;
+                videoFormatButton.ForeColor = Color.White;
+                audioFormatButton.BackColor = bgInput;
+                audioFormatButton.ForeColor = textMuted;
+
+                qualityComboBox.Enabled = true;
+                subtitleCheckBox.Enabled = true;
+            }
+            else
+            {
+                audioFormatButton.BackColor = primaryBtn;
+                audioFormatButton.ForeColor = Color.White;
+                videoFormatButton.BackColor = bgInput;
+                videoFormatButton.ForeColor = textMuted;
+
+                qualityComboBox.Enabled = false;
+                subtitleCheckBox.Enabled = false;
+                subtitleCheckBox.Checked = false;
+            }
+        }
+
+        private void ChangeLanguage(AppLanguage language)
+        {
+            currentLanguage = language;
             ApplyLanguage();
+            SaveSettings();
         }
 
-        private void ChangeTheme(AppTheme newTheme)
+        private void ChangeTheme(AppTheme theme)
         {
-            currentTheme = newTheme;
-            SaveSettings();
+            currentTheme = theme;
             ApplyTheme();
+            SaveSettings();
         }
 
         private void ApplyLanguage()
         {
             this.Text = GetText("FormTitle");
             urlLabel.Text = GetText("VideoURL");
-            mediaTypeLabel.Text = GetText("MediaType");
-            videoRadioButton.Text = GetText("VideoOption");
-            audioRadioButton.Text = GetText("AudioOption");
+            pasteButton.Text = "📋";
+            videoFormatButton.Text = GetText("VideoOption");
+            audioFormatButton.Text = GetText("AudioOption");
             qualityLabel.Text = GetText("Quality");
+            subtitleCheckBox.Text = GetText("DownloadSubtitles");
             pathLabel.Text = GetText("DownloadPath");
-            urlTextBox.PlaceholderText = GetText("URLPlaceholder");
             browseButton.Text = GetText("Browse");
             downloadButton.Text = GetText("Download");
-            updateButton.Text = GetText("SystemCheck");
-            subtitleCheckBox.Text = GetText("DownloadSubtitles");
-            progressGroupBox.Text = GetText("DownloadStatus");
-            pauseResumeButton.Text = GetText("Pause");
             cancelButton.Text = GetText("Cancel");
-            UpdateComboBoxItems();
-            RefreshMenuStrip();
-            if (statusLabel.Text.Contains("Hazır") || statusLabel.Text.Contains("Ready"))
-            {
-                statusLabel.Text = GetText("Ready") + " - " + GetText("DevelopedBy");
-            }
-        }
+            statusLabel.Text = GetText("Ready");
 
-        private void UpdateComboBoxItems()
-        {
-            var qualitySelection = qualityComboBox.SelectedIndex;
+            // Update quality items
+            var selectedIndex = qualityComboBox.SelectedIndex;
             qualityComboBox.Items.Clear();
             qualityComboBox.Items.AddRange(new object[]
             {
-                GetText("BestQuality"),
-                "2160p",
-                "1440p",
-                "1080p",
-                "720p",
-                "480p",
+                currentLanguage == AppLanguage.Turkish ? "En İyi Kalite" : "Best Quality",
+                "2160p (4K)",
+                "1440p (2K)",
+                "1080p (Full HD)",
+                "720p (HD)",
+                "480p (SD)",
                 "360p"
             });
-            qualityComboBox.SelectedIndex = qualitySelection >= 0 ? qualitySelection : 0;
+            if (selectedIndex >= 0 && selectedIndex < qualityComboBox.Items.Count)
+                qualityComboBox.SelectedIndex = selectedIndex;
+            else
+                qualityComboBox.SelectedIndex = 0;
+
+            // Placeholder for URL
+            if (string.IsNullOrWhiteSpace(urlTextBox.Text) ||
+                urlTextBox.Text == translations["URLPlaceholder"][AppLanguage.Turkish] ||
+                urlTextBox.Text == translations["URLPlaceholder"][AppLanguage.English])
+            {
+                urlTextBox.Text = "";
+                urlTextBox.ForeColor = grayColor;
+            }
+
+            // Menüyü güncelle
+            UpdateMenuLanguage();
         }
 
-        private void RefreshMenuStrip()
+        private void UpdateMenuLanguage()
         {
-            this.Controls.Remove(mainMenuStrip);
-            InitializeAboutMenu();
+            if (mainMenuStrip == null || mainMenuStrip.Items.Count < 2) return;
+
+            // Ayarlar menüsü
+            var settingsMenu = mainMenuStrip.Items[0] as ToolStripMenuItem;
+            if (settingsMenu != null)
+            {
+                settingsMenu.Text = GetText("Settings");
+
+                // Dil alt menüsü
+                if (settingsMenu.DropDownItems.Count > 0)
+                {
+                    var languageMenu = settingsMenu.DropDownItems[0] as ToolStripMenuItem;
+                    if (languageMenu != null)
+                    {
+                        languageMenu.Text = GetText("Language");
+                        if (languageMenu.DropDownItems.Count >= 2)
+                        {
+                            languageMenu.DropDownItems[0].Text = GetText("Turkish");
+                            languageMenu.DropDownItems[1].Text = GetText("English");
+                        }
+                    }
+                }
+
+                // Tema alt menüsü
+                if (settingsMenu.DropDownItems.Count > 1)
+                {
+                    var themeMenu = settingsMenu.DropDownItems[1] as ToolStripMenuItem;
+                    if (themeMenu != null)
+                    {
+                        themeMenu.Text = GetText("Theme");
+                        if (themeMenu.DropDownItems.Count >= 2)
+                        {
+                            themeMenu.DropDownItems[0].Text = GetText("LightTheme");
+                            themeMenu.DropDownItems[1].Text = GetText("DarkTheme");
+                        }
+                    }
+                }
+
+                // Sistem Kontrolü menü öğesi (index 3, separator'dan sonra)
+                if (settingsMenu.DropDownItems.Count > 3)
+                {
+                    settingsMenu.DropDownItems[3].Text = GetText("SystemCheck");
+                }
+            }
+
+            // Yardım menüsü
+            var helpMenu = mainMenuStrip.Items[1] as ToolStripMenuItem;
+            if (helpMenu != null)
+            {
+                helpMenu.Text = GetText("Help");
+                if (helpMenu.DropDownItems.Count >= 2)
+                {
+                    helpMenu.DropDownItems[0].Text = GetText("About");
+                    helpMenu.DropDownItems[1].Text = GetText("SupportedSites");
+                }
+            }
         }
 
         private void ApplyTheme()
         {
-            Color backgroundColor, foregroundColor, buttonColor, inputBackColor, inputForeColor;
+            Color backgroundColor, foregroundColor, inputBackColor, inputForeColor, panelColor;
 
             if (currentTheme == AppTheme.Dark)
             {
-                backgroundColor = Color.FromArgb(32, 32, 32);
-                foregroundColor = Color.FromArgb(220, 220, 220);
-                buttonColor = Color.FromArgb(45, 45, 45);
-                inputBackColor = Color.FromArgb(45, 45, 45);
-                inputForeColor = Color.FromArgb(220, 220, 220);
+                // Dark Theme - Improved readability
+                backgroundColor = darkBgColor;                      // Zinc-900: #18181B
+                foregroundColor = Color.FromArgb(250, 250, 250);    // Zinc-50 (daha parlak)
+                inputBackColor = Color.FromArgb(39, 39, 42);        // Zinc-800 (daha açık input)
+                inputForeColor = Color.FromArgb(244, 244, 245);     // Zinc-100 (net okuma)
+                panelColor = Color.FromArgb(39, 39, 42);            // Zinc-800
             }
             else
             {
-                backgroundColor = Color.FromArgb(248, 249, 250);
-                foregroundColor = Color.FromArgb(45, 45, 45);
-                buttonColor = Color.White;
-                inputBackColor = Color.White;
-                inputForeColor = Color.FromArgb(45, 45, 45);
+                // Light Theme - Improved contrast
+                backgroundColor = lightBgColor;                      // Gray-50: #F9FAFB
+                foregroundColor = Color.FromArgb(24, 24, 27);       // Zinc-900 (koyu metin)
+                inputBackColor = Color.White;                       // Beyaz input
+                inputForeColor = Color.FromArgb(24, 24, 27);        // Zinc-900 (net okuma)
+                panelColor = Color.White;                           // Beyaz panel
             }
 
             this.BackColor = backgroundColor;
 
             foreach (Control control in this.Controls)
             {
-                if (control is Label label)
-                {
-                    label.ForeColor = foregroundColor;
-                }
-                else if (control is TextBox textBox)
-                {
-                    textBox.BackColor = inputBackColor;
-                    textBox.ForeColor = inputForeColor;
-                }
-                else if (control is ComboBox comboBox)
-                {
-                    comboBox.BackColor = inputBackColor;
-                    comboBox.ForeColor = inputForeColor;
-                }
-                else if (control is CheckBox checkBox)
-                {
-                    checkBox.BackColor = backgroundColor;
-                    checkBox.ForeColor = foregroundColor;
-                }
-                else if (control is RadioButton radioButton)
-                {
-                    radioButton.BackColor = backgroundColor;
-                    radioButton.ForeColor = foregroundColor;
-                }
-                else if (control is GroupBox groupBox)
-                {
-                    groupBox.BackColor = backgroundColor;
-                    groupBox.ForeColor = foregroundColor;
+                ApplyThemeToControl(control, backgroundColor, foregroundColor, inputBackColor, inputForeColor, panelColor);
+            }
+        }
 
-                    foreach (Control innerControl in groupBox.Controls)
-                    {
-                        if (innerControl is Label innerLabel)
-                        {
-                            innerLabel.ForeColor = foregroundColor;
-                        }
-                        else if (innerControl is Button innerButton)
-                        {
-                        }
-                    }
-                }
-                else if (control is RichTextBox richTextBox)
+        private void ApplyThemeToControl(Control control, Color bgColor, Color fgColor, Color inputBg, Color inputFg, Color panelColor)
+        {
+            if (control is Label label && control.Name != "statusLabel")
+            {
+                label.ForeColor = fgColor;
+            }
+            else if (control is TextBox textBox)
+            {
+                textBox.BackColor = inputBg;
+                textBox.ForeColor = inputFg;
+            }
+            else if (control is ComboBox comboBox)
+            {
+                comboBox.BackColor = inputBg;
+                comboBox.ForeColor = inputFg;
+            }
+            else if (control is CheckBox checkBox)
+            {
+                checkBox.ForeColor = fgColor;
+            }
+            else if (control is Panel panel)
+            {
+                if (panel.Name == "progressPanel" || panel.Name == "previewPanel")
                 {
-                    if (currentTheme == AppTheme.Dark)
-                    {
-                        richTextBox.BackColor = Color.FromArgb(20, 20, 20);
-                        richTextBox.ForeColor = Color.FromArgb(40, 167, 69);
-                    }
-                    else
-                    {
-                        richTextBox.BackColor = Color.FromArgb(33, 37, 41);
-                        richTextBox.ForeColor = Color.FromArgb(40, 167, 69);
-                    }
+                    panel.BackColor = panelColor;
                 }
-                else if (control is MenuStrip menuStrip)
-                {
-                    menuStrip.BackColor = backgroundColor;
-                    menuStrip.ForeColor = foregroundColor;
 
-                    foreach (ToolStripItem item in menuStrip.Items)
-                    {
-                        item.BackColor = backgroundColor;
-                        item.ForeColor = foregroundColor;
-                    }
+                foreach (Control child in panel.Controls)
+                {
+                    ApplyThemeToControl(child, bgColor, fgColor, inputBg, inputFg, panelColor);
+                }
+            }
+            else if (control is MenuStrip menuStrip)
+            {
+                menuStrip.BackColor = bgColor;
+                menuStrip.ForeColor = fgColor;
+                foreach (ToolStripItem item in menuStrip.Items)
+                {
+                    item.BackColor = bgColor;
+                    item.ForeColor = fgColor;
                 }
             }
         }
@@ -216,28 +314,23 @@ namespace VideoDownloader
             {
                 ["FormTitle"] = new Dictionary<AppLanguage, string>
                 {
-                    [AppLanguage.Turkish] = "Video İndirici - YouTube, Twitter, Instagram",
-                    [AppLanguage.English] = "Video Downloader - YouTube, Twitter, Instagram"
+                    [AppLanguage.Turkish] = "Video İndirici",
+                    [AppLanguage.English] = "Video Downloader"
                 },
                 ["VideoURL"] = new Dictionary<AppLanguage, string>
                 {
-                    [AppLanguage.Turkish] = "Video URL:",
-                    [AppLanguage.English] = "Video URL:"
+                    [AppLanguage.Turkish] = "Video URL",
+                    [AppLanguage.English] = "Video URL"
                 },
                 ["URLPlaceholder"] = new Dictionary<AppLanguage, string>
                 {
-                    [AppLanguage.Turkish] = "YouTube, Twitter, Instagram veya diğer platform linklerini buraya yapıştırın...",
-                    [AppLanguage.English] = "Paste YouTube, Twitter, Instagram or other platform links here..."
+                    [AppLanguage.Turkish] = "YouTube, Twitter, Instagram linkini yapıştırın...",
+                    [AppLanguage.English] = "Paste YouTube, Twitter, Instagram link..."
                 },
                 ["Quality"] = new Dictionary<AppLanguage, string>
                 {
-                    [AppLanguage.Turkish] = "Kalite:",
-                    [AppLanguage.English] = "Quality:"
-                },
-                ["BestQuality"] = new Dictionary<AppLanguage, string>
-                {
-                    [AppLanguage.Turkish] = "En İyi",
-                    [AppLanguage.English] = "Best"
+                    [AppLanguage.Turkish] = "Kalite",
+                    [AppLanguage.English] = "Quality"
                 },
                 ["DownloadSubtitles"] = new Dictionary<AppLanguage, string>
                 {
@@ -246,43 +339,23 @@ namespace VideoDownloader
                 },
                 ["DownloadPath"] = new Dictionary<AppLanguage, string>
                 {
-                    [AppLanguage.Turkish] = "İndirme Yolu:",
-                    [AppLanguage.English] = "Download Path:"
+                    [AppLanguage.Turkish] = "İndirme Klasörü",
+                    [AppLanguage.English] = "Download Folder"
                 },
                 ["Browse"] = new Dictionary<AppLanguage, string>
                 {
-                    [AppLanguage.Turkish] = "📁 Gözat",
-                    [AppLanguage.English] = "📁 Browse"
+                    [AppLanguage.Turkish] = "Gözat",
+                    [AppLanguage.English] = "Browse"
                 },
-                ["DownloadVideo"] = new Dictionary<AppLanguage, string>
+                ["Download"] = new Dictionary<AppLanguage, string>
                 {
-                    [AppLanguage.Turkish] = "🎬 Video İndir",
-                    [AppLanguage.English] = "🎬 Download Video"
-                },
-                ["SystemCheck"] = new Dictionary<AppLanguage, string>
-                {
-                    [AppLanguage.Turkish] = "🔧 Sistem Kontrolü",
-                    [AppLanguage.English] = "🔧 System Check"
-                },
-                ["DownloadStatus"] = new Dictionary<AppLanguage, string>
-                {
-                    [AppLanguage.Turkish] = "📊 İndirme Durumu",
-                    [AppLanguage.English] = "📊 Download Status"
+                    [AppLanguage.Turkish] = "⬇️ İndir",
+                    [AppLanguage.English] = "⬇️ Download"
                 },
                 ["Ready"] = new Dictionary<AppLanguage, string>
                 {
                     [AppLanguage.Turkish] = "Hazır",
                     [AppLanguage.English] = "Ready"
-                },
-                ["DevelopedBy"] = new Dictionary<AppLanguage, string>
-                {
-                    [AppLanguage.Turkish] = "kayapater tarafından geliştirildi",
-                    [AppLanguage.English] = "developed by kayapater"
-                },
-                ["Preparing"] = new Dictionary<AppLanguage, string>
-                {
-                    [AppLanguage.Turkish] = "Hazırlanıyor...",
-                    [AppLanguage.English] = "Preparing..."
                 },
                 ["Settings"] = new Dictionary<AppLanguage, string>
                 {
@@ -336,8 +409,8 @@ namespace VideoDownloader
                 },
                 ["AppDescription"] = new Dictionary<AppLanguage, string>
                 {
-                    [AppLanguage.Turkish] = "Video İndirici v1.3.2\n\nYouTube, Twitter ve Instagram'dan video indirme aracı",
-                    [AppLanguage.English] = "Video Downloader v1.3.2\n\nDownload videos from YouTube, Twitter and Instagram"
+                    [AppLanguage.Turkish] = "Video İndirici v1.4.0\n\nYouTube, Twitter ve Instagram'dan video indirme aracı",
+                    [AppLanguage.English] = "Video Downloader v1.4.0\n\nDownload videos from YouTube, Twitter and Instagram"
                 },
                 ["Developer"] = new Dictionary<AppLanguage, string>
                 {
@@ -349,12 +422,6 @@ namespace VideoDownloader
                     [AppLanguage.Turkish] = "Tamam",
                     [AppLanguage.English] = "OK"
                 },
-
-                ["MediaType"] = new Dictionary<AppLanguage, string>
-                {
-                    [AppLanguage.Turkish] = "Medya Türü:",
-                    [AppLanguage.English] = "Media Type:"
-                },
                 ["VideoOption"] = new Dictionary<AppLanguage, string>
                 {
                     [AppLanguage.Turkish] = "🎬 Video",
@@ -365,30 +432,70 @@ namespace VideoDownloader
                     [AppLanguage.Turkish] = "🎵 Ses",
                     [AppLanguage.English] = "🎵 Audio"
                 },
-                ["Download"] = new Dictionary<AppLanguage, string>
-                {
-                    [AppLanguage.Turkish] = "🎬 İndir",
-                    [AppLanguage.English] = "🎬 Download"
-                },
                 ["SupportedSites"] = new Dictionary<AppLanguage, string>
                 {
                     [AppLanguage.Turkish] = "Desteklenen Siteler",
                     [AppLanguage.English] = "Supported Sites"
                 },
-                ["Pause"] = new Dictionary<AppLanguage, string>
-                {
-                    [AppLanguage.Turkish] = "⏸️ Duraklat",
-                    [AppLanguage.English] = "⏸️ Pause"
-                },
-                ["Resume"] = new Dictionary<AppLanguage, string>
-                {
-                    [AppLanguage.Turkish] = "▶️ Devam Et",
-                    [AppLanguage.English] = "▶️ Resume"
-                },
                 ["Cancel"] = new Dictionary<AppLanguage, string>
                 {
-                    [AppLanguage.Turkish] = "❌ İptal",
-                    [AppLanguage.English] = "❌ Cancel"
+                    [AppLanguage.Turkish] = "İptal",
+                    [AppLanguage.English] = "Cancel"
+                },
+                ["Downloading"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "İndiriliyor...",
+                    [AppLanguage.English] = "Downloading..."
+                },
+                ["Completed"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "Tamamlandı!",
+                    [AppLanguage.English] = "Completed!"
+                },
+                ["Error"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "Hata",
+                    [AppLanguage.English] = "Error"
+                },
+                ["Success"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "Başarılı",
+                    [AppLanguage.English] = "Success"
+                },
+                ["SystemCheck"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "Sistem Kontrolü",
+                    [AppLanguage.English] = "System Check"
+                },
+                ["CheckingDependencies"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "Bağımlılıklar kontrol ediliyor...",
+                    [AppLanguage.English] = "Checking dependencies..."
+                },
+                ["InstallingYtDlp"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "yt-dlp kuruluyor...",
+                    [AppLanguage.English] = "Installing yt-dlp..."
+                },
+                ["YtDlpInstalled"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "yt-dlp başarıyla kuruldu!",
+                    [AppLanguage.English] = "yt-dlp installed successfully!"
+                },
+                ["YtDlpInstallFailed"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "yt-dlp kurulumu başarısız!",
+                    [AppLanguage.English] = "yt-dlp installation failed!"
+                },
+                ["PythonNotFound"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "Python bulunamadı! Lütfen python.org adresinden Python kurun.",
+                    [AppLanguage.English] = "Python not found! Please install Python from python.org"
+                },
+                ["AllDependenciesOk"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "✓ Tüm bağımlılıklar hazır",
+                    [AppLanguage.English] = "✓ All dependencies ready"
                 }
             };
         }
@@ -412,9 +519,7 @@ namespace VideoDownloader
                     }
                 }
             }
-            catch
-            {
-            }
+            catch { }
         }
 
         private void SaveSettings()
@@ -427,9 +532,7 @@ namespace VideoDownloader
                     key?.SetValue("Theme", currentTheme.ToString());
                 }
             }
-            catch
-            {
-            }
+            catch { }
         }
 
         private string GetText(string key)
@@ -465,7 +568,11 @@ namespace VideoDownloader
 
             themeMenu.DropDownItems.AddRange(new ToolStripItem[] { lightThemeMenuItem, darkThemeMenuItem });
 
-            settingsMenu.DropDownItems.AddRange(new ToolStripItem[] { languageMenu, themeMenu });
+            // Sistem Kontrolü menü öğesi
+            var systemCheckMenuItem = new ToolStripMenuItem(GetText("SystemCheck"));
+            systemCheckMenuItem.Click += SystemCheckMenuItem_Click;
+
+            settingsMenu.DropDownItems.AddRange(new ToolStripItem[] { languageMenu, themeMenu, new ToolStripSeparator(), systemCheckMenuItem });
 
             var helpMenu = new ToolStripMenuItem(GetText("Help"));
             var aboutMenuItem = new ToolStripMenuItem(GetText("About"));
@@ -485,22 +592,13 @@ namespace VideoDownloader
 
         private void AboutMenuItem_Click(object sender, EventArgs e)
         {
-            Color backgroundColor, foregroundColor;
-            if (currentTheme == AppTheme.Dark)
-            {
-                backgroundColor = Color.FromArgb(32, 32, 32);
-                foregroundColor = Color.FromArgb(220, 220, 220);
-            }
-            else
-            {
-                backgroundColor = Color.FromArgb(248, 249, 250);
-                foregroundColor = Color.FromArgb(45, 45, 45);
-            }
+            Color backgroundColor = currentTheme == AppTheme.Dark ? darkBgColor : lightBgColor;
+            Color foregroundColor = currentTheme == AppTheme.Dark ? Color.FromArgb(243, 244, 246) : Color.FromArgb(17, 24, 39);
 
             var aboutForm = new Form
             {
                 Text = GetText("AboutTitle"),
-                Size = new Size(520, 550),
+                Size = new Size(450, 400),
                 StartPosition = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
@@ -512,15 +610,15 @@ namespace VideoDownloader
             {
                 Text = GetText("AppDescription"),
                 Location = new Point(20, 20),
-                Size = new Size(400, 80),
-                Font = new Font("Segoe UI", 10),
+                Size = new Size(400, 60),
+                Font = new Font("Segoe UI", 11),
                 ForeColor = foregroundColor
             };
 
             var developerLabel = new Label
             {
                 Text = GetText("Developer"),
-                Location = new Point(20, 100),
+                Location = new Point(20, 90),
                 Size = new Size(80, 20),
                 Font = new Font("Segoe UI", 10),
                 ForeColor = foregroundColor
@@ -529,7 +627,7 @@ namespace VideoDownloader
             var kayapaterLink = new LinkLabel
             {
                 Text = "kayapater",
-                Location = new Point(105, 100),
+                Location = new Point(105, 90),
                 Size = new Size(100, 20),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 BackColor = backgroundColor
@@ -540,109 +638,63 @@ namespace VideoDownloader
                 {
                     Process.Start(new ProcessStartInfo("https://github.com/kayapater") { UseShellExecute = true });
                 }
-                catch (Exception ex)
-                {
-                    var errorMsg = currentLanguage == AppLanguage.Turkish ?
-                        $"Link açılamadı: {ex.Message}" :
-                        $"Could not open link: {ex.Message}";
-                    var errorTitle = currentLanguage == AppLanguage.Turkish ? "Hata" : "Error";
-                    MessageBox.Show(errorMsg, errorTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
+                catch { }
             };
 
             var featuresText = currentLanguage == AppLanguage.Turkish ?
                 @"Bu uygulama ile:
-• YouTube videolarını indirebilirsiniz
-• Twitter videolarını indirebilirsiniz  
-• Instagram videolarını indirebilirsiniz
-• Farklı kalite seçenekleri kullanabilirsiniz
-• Altyazı indirme desteği mevcuttur
-• İngilizce ve Türkçe dil desteği
-• Açık ve koyu tema seçenekleri
+• YouTube, Twitter, Instagram videoları
+• TikTok, Facebook, Vimeo ve daha fazlası
+• Farklı kalite seçenekleri (4K, 1080p, 720p)
+• MP3 olarak ses indirme
+• Altyazı indirme desteği
 
-Teknolojiler:
-• .NET 8.0 Windows Forms
-• yt-dlp (Python video indirme modülü)
-• FFmpeg (video/ses işleme ve dönüştürme)
-• Python 3.x (backend motor)
-• Newtonsoft.Json (JSON veri işleme)
-• Windows API (sistem entegrasyonu)
-• C# async/await (asenkron işlemler)
-• Process API (harici program çalıştırma)" :
-                @"With this application you can:
-• Download videos from YouTube
-• Download videos from Twitter  
-• Download videos from Instagram
-• Use different quality options
-• Download subtitles support
-• English and Turkish language support
-• Light and dark theme options
+Teknolojiler: .NET 8.0, yt-dlp, FFmpeg" :
+                @"With this app:
+• YouTube, Twitter, Instagram videos
+• TikTok, Facebook, Vimeo and more
+• Different quality options (4K, 1080p, 720p)
+• Download audio as MP3
+• Subtitle download support
 
-Technologies:
-• .NET 8.0 Windows Forms
-• yt-dlp (Python video download module)
-• FFmpeg (video/audio processing)
-• Python 3.x (backend engine)
-• Newtonsoft.Json (JSON data processing)
-• Windows API (system integration)
-• C# async/await (asynchronous operations)
-• Process API (external program execution)";
+Technologies: .NET 8.0, yt-dlp, FFmpeg";
 
             var featuresLabel = new Label
             {
                 Text = featuresText,
-                Location = new Point(10, 10),
+                Location = new Point(20, 120),
+                Size = new Size(400, 180),
                 Font = new Font("Segoe UI", 9),
-                ForeColor = foregroundColor,
-                AutoSize = true,
-                MaximumSize = new Size(450, 0)
+                ForeColor = foregroundColor
             };
-
-            var scrollPanel = new Panel
-            {
-                Location = new Point(20, 130),
-                Size = new Size(460, 320),
-                AutoScroll = true,
-                BackColor = backgroundColor
-            };
-
-            scrollPanel.Controls.Add(featuresLabel);
 
             var okButton = new Button
             {
                 Text = GetText("OK"),
-                Location = new Point(410, 470),
+                Location = new Point(340, 320),
                 Size = new Size(80, 35),
                 DialogResult = DialogResult.OK,
                 Font = new Font("Segoe UI", 9),
-                BackColor = Color.FromArgb(76, 175, 80),
+                BackColor = primaryColor,
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat
             };
+            okButton.FlatAppearance.BorderSize = 0;
 
-            aboutForm.Controls.AddRange(new Control[] { textLabel, developerLabel, kayapaterLink, scrollPanel, okButton });
+            aboutForm.Controls.AddRange(new Control[] { textLabel, developerLabel, kayapaterLink, featuresLabel, okButton });
             aboutForm.AcceptButton = okButton;
             aboutForm.ShowDialog(this);
         }
 
         private void SupportedSitesMenuItem_Click(object sender, EventArgs e)
         {
-            Color backgroundColor, foregroundColor;
-            if (currentTheme == AppTheme.Dark)
-            {
-                backgroundColor = Color.FromArgb(32, 32, 32);
-                foregroundColor = Color.FromArgb(220, 220, 220);
-            }
-            else
-            {
-                backgroundColor = Color.FromArgb(248, 249, 250);
-                foregroundColor = Color.FromArgb(45, 45, 45);
-            }
+            Color backgroundColor = currentTheme == AppTheme.Dark ? darkBgColor : lightBgColor;
+            Color foregroundColor = currentTheme == AppTheme.Dark ? Color.FromArgb(243, 244, 246) : Color.FromArgb(17, 24, 39);
 
             var sitesForm = new Form
             {
                 Text = GetText("SupportedSites"),
-                Size = new Size(680, 650),
+                Size = new Size(500, 500),
                 StartPosition = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
@@ -651,316 +703,651 @@ Technologies:
             };
 
             var sitesText = currentLanguage == AppLanguage.Turkish ?
-                @"🎬 VİDEO SİTELERİ:
+                @"📺 ANA PLATFORMLAR:
+YouTube, Instagram, TikTok, Twitter/X
+Facebook, Twitch, Vimeo, Dailymotion
+Reddit, LinkedIn
 
-📺 ANA PLATFORMLAR:
-• YouTube 
-• Instagram 
-• TikTok 
-• Twitter/X 
-• Facebook 
-• Twitch 
-• Vimeo 
-• Dailymotion 
-• Reddit 
-• LinkedIn 
-
-🔞 YETİŞKİN PLATFORMLAR +18:
-• Pornhub 
-• XVideos 
-• RedTube 
-• YouPorn 
-• Xhamster 
+🔞 YETİŞKİN (+18):
+Pornhub, XVideos, RedTube ve diğerleri
 
 📺 TV & HABER:
-• BBC iPlayer 
-• CNN 
-• ESPN 
-• Arte 
-• CNBC 
+BBC iPlayer, CNN, ESPN, Arte
 
 🌏 ULUSLARARASI:
-• Bilibili 
-• Niconico 
-• VK 
-• Odnoklassniki 
+Bilibili, Niconico, VK
 
-🎵 MÜZİK & SES:
-• SoundCloud 
-• Bandcamp 
-• Mixcloud 
+🎵 MÜZİK:
+SoundCloud, Bandcamp, Mixcloud
 
-📚 EĞİTİM & KURSLAR:
-• Udemy 
-• Coursera 
-• Khan Academy" :
-                @"🎬 VIDEO SITES:
+📚 EĞİTİM:
+Udemy, Coursera, Khan Academy
 
-📺 MAIN PLATFORMS:
-• YouTube 
-• Instagram 
-• TikTok 
-• Twitter/X 
-• Facebook 
-• Twitch 
-• Vimeo 
-• Dailymotion 
-• Reddit 
-• LinkedIn 
+Ve 1000+ site daha..." :
+                @"📺 MAIN PLATFORMS:
+YouTube, Instagram, TikTok, Twitter/X
+Facebook, Twitch, Vimeo, Dailymotion
+Reddit, LinkedIn
 
-🔞 ADULT PLATFORMS +18: 
-• Pornhub 
-• XVideos 
-• RedTube 
-• YouPorn 
-• Xhamster 
+🔞 ADULT (+18):
+Pornhub, XVideos, RedTube and others
 
 📺 TV & NEWS:
-• BBC iPlayer 
-• CNN 
-• ESPN 
-• Arte 
-• CNBC 
+BBC iPlayer, CNN, ESPN, Arte
 
 🌏 INTERNATIONAL:
-• Bilibili 
-• Niconico 
-• VK 
-• Odnoklassniki 
+Bilibili, Niconico, VK
 
-🎵 MUSIC & AUDIO:
-• SoundCloud 
-• Bandcamp 
-• Mixcloud 
+🎵 MUSIC:
+SoundCloud, Bandcamp, Mixcloud
 
-📚 EDUCATION & COURSES:
-• Udemy 
-• Coursera 
-• Khan Academy";
+📚 EDUCATION:
+Udemy, Coursera, Khan Academy
+
+And 1000+ more sites...";
 
             var sitesLabel = new Label
             {
                 Text = sitesText,
-                Location = new Point(10, 10),
-                Font = new Font("Segoe UI", 9),
-                ForeColor = foregroundColor,
-                AutoSize = true,
-                MaximumSize = new Size(580, 0)
-            };
-
-            var scrollPanel = new Panel
-            {
                 Location = new Point(20, 20),
-                Size = new Size(620, 520),
-                AutoScroll = true,
-                BackColor = backgroundColor
+                Size = new Size(440, 380),
+                Font = new Font("Segoe UI", 10),
+                ForeColor = foregroundColor
             };
-
-            scrollPanel.Controls.Add(sitesLabel);
 
             var okButton = new Button
             {
                 Text = GetText("OK"),
-                Location = new Point(580, 560),
+                Location = new Point(390, 420),
                 Size = new Size(80, 35),
                 DialogResult = DialogResult.OK,
                 Font = new Font("Segoe UI", 9),
-                BackColor = Color.FromArgb(76, 175, 80),
+                BackColor = primaryColor,
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat
             };
+            okButton.FlatAppearance.BorderSize = 0;
 
-            sitesForm.Controls.AddRange(new Control[] { scrollPanel, okButton });
+            sitesForm.Controls.AddRange(new Control[] { sitesLabel, okButton });
             sitesForm.AcceptButton = okButton;
             sitesForm.ShowDialog(this);
         }
 
-        private void ShowProgress(bool show)
+        private async void SystemCheckMenuItem_Click(object sender, EventArgs e)
         {
-            progressGroupBox.Visible = show;
-            if (show)
-            {
-                progressBar.Value = 0;
-                progressPercentageLabel.Text = "0%";
-                progressStatusLabel.Text = "Hazırlanıyor...";
-                currentFileLabel.Text = "";
-                speedLabel.Text = "";
-                timeRemainingLabel.Text = "";
+            Color backgroundColor = currentTheme == AppTheme.Dark ? darkBgColor : lightBgColor;
+            Color foregroundColor = currentTheme == AppTheme.Dark ? Color.FromArgb(243, 244, 246) : Color.FromArgb(17, 24, 39);
+            Color successColor = Color.FromArgb(34, 197, 94);  // Green
+            Color errorColor = Color.FromArgb(239, 68, 68);    // Red
+            Color warningColor = Color.FromArgb(234, 179, 8);  // Yellow
 
-                pauseResumeButton.Enabled = false;
-                cancelButton.Enabled = false;
+            var checkForm = new Form
+            {
+                Text = GetText("SystemCheck"),
+                Size = new Size(450, 350),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                BackColor = backgroundColor
+            };
+
+            var titleLabel = new Label
+            {
+                Text = currentLanguage == AppLanguage.Turkish ? "🔧 Sistem Durumu" : "🔧 System Status",
+                Location = new Point(20, 20),
+                Size = new Size(400, 30),
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
+                ForeColor = foregroundColor
+            };
+
+            var pythonLabel = new Label
+            {
+                Text = currentLanguage == AppLanguage.Turkish ? "⏳ Python kontrol ediliyor..." : "⏳ Checking Python...",
+                Location = new Point(20, 70),
+                Size = new Size(400, 25),
+                Font = new Font("Segoe UI", 10),
+                ForeColor = foregroundColor
+            };
+
+            var ytdlpLabel = new Label
+            {
+                Text = currentLanguage == AppLanguage.Turkish ? "⏳ yt-dlp kontrol ediliyor..." : "⏳ Checking yt-dlp...",
+                Location = new Point(20, 100),
+                Size = new Size(400, 25),
+                Font = new Font("Segoe UI", 10),
+                ForeColor = foregroundColor
+            };
+
+            var ffmpegLabel = new Label
+            {
+                Text = currentLanguage == AppLanguage.Turkish ? "⏳ FFmpeg kontrol ediliyor..." : "⏳ Checking FFmpeg...",
+                Location = new Point(20, 130),
+                Size = new Size(400, 25),
+                Font = new Font("Segoe UI", 10),
+                ForeColor = foregroundColor
+            };
+
+            var statusLabel = new Label
+            {
+                Text = "",
+                Location = new Point(20, 180),
+                Size = new Size(400, 50),
+                Font = new Font("Segoe UI", 9),
+                ForeColor = foregroundColor
+            };
+
+            var installButton = new Button
+            {
+                Text = currentLanguage == AppLanguage.Turkish ? "yt-dlp Kur" : "Install yt-dlp",
+                Location = new Point(20, 250),
+                Size = new Size(120, 35),
+                Font = new Font("Segoe UI", 9),
+                BackColor = primaryColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Visible = false
+            };
+            installButton.FlatAppearance.BorderSize = 0;
+
+            var closeButton = new Button
+            {
+                Text = GetText("OK"),
+                Location = new Point(340, 250),
+                Size = new Size(80, 35),
+                DialogResult = DialogResult.OK,
+                Font = new Font("Segoe UI", 9),
+                BackColor = primaryColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            closeButton.FlatAppearance.BorderSize = 0;
+
+            checkForm.Controls.AddRange(new Control[] { titleLabel, pythonLabel, ytdlpLabel, ffmpegLabel, statusLabel, installButton, closeButton });
+            checkForm.AcceptButton = closeButton;
+
+            // Kontrolleri başlat
+            checkForm.Shown += async (s, args) =>
+            {
+                // Python kontrolü
+                var pythonOk = await CheckPythonInstalled();
+                pythonLabel.Text = pythonOk 
+                    ? (currentLanguage == AppLanguage.Turkish ? "✅ Python kurulu" : "✅ Python installed")
+                    : (currentLanguage == AppLanguage.Turkish ? "❌ Python bulunamadı" : "❌ Python not found");
+                pythonLabel.ForeColor = pythonOk ? successColor : errorColor;
+
+                if (!pythonOk)
+                {
+                    statusLabel.Text = currentLanguage == AppLanguage.Turkish 
+                        ? "Python gerekli! python.org adresinden indirin." 
+                        : "Python required! Download from python.org";
+                    statusLabel.ForeColor = errorColor;
+                    return;
+                }
+
+                // yt-dlp kontrolü
+                var ytdlpOk = await CheckYtDlpInstalled();
+                ytdlpLabel.Text = ytdlpOk 
+                    ? (currentLanguage == AppLanguage.Turkish ? "✅ yt-dlp kurulu" : "✅ yt-dlp installed")
+                    : (currentLanguage == AppLanguage.Turkish ? "❌ yt-dlp bulunamadı" : "❌ yt-dlp not found");
+                ytdlpLabel.ForeColor = ytdlpOk ? successColor : errorColor;
+
+                if (!ytdlpOk)
+                {
+                    installButton.Visible = true;
+                    statusLabel.Text = currentLanguage == AppLanguage.Turkish 
+                        ? "yt-dlp kurulu değil. Kurmak için butona tıklayın." 
+                        : "yt-dlp not installed. Click button to install.";
+                    statusLabel.ForeColor = warningColor;
+                }
+
+                // FFmpeg kontrolü
+                var ffmpegOk = await CheckFFmpegInstalled();
+                ffmpegLabel.Text = ffmpegOk 
+                    ? (currentLanguage == AppLanguage.Turkish ? "✅ FFmpeg kurulu" : "✅ FFmpeg installed")
+                    : (currentLanguage == AppLanguage.Turkish ? "⚠️ FFmpeg bulunamadı (opsiyonel)" : "⚠️ FFmpeg not found (optional)");
+                ffmpegLabel.ForeColor = ffmpegOk ? successColor : warningColor;
+
+                if (pythonOk && ytdlpOk)
+                {
+                    statusLabel.Text = currentLanguage == AppLanguage.Turkish 
+                        ? "✅ Tüm gerekli bağımlılıklar hazır!" 
+                        : "✅ All required dependencies ready!";
+                    statusLabel.ForeColor = successColor;
+                }
+            };
+
+            // yt-dlp kur butonu
+            installButton.Click += async (s, args) =>
+            {
+                installButton.Enabled = false;
+                installButton.Text = currentLanguage == AppLanguage.Turkish ? "Kuruluyor..." : "Installing...";
+                statusLabel.Text = currentLanguage == AppLanguage.Turkish ? "yt-dlp kuruluyor, lütfen bekleyin..." : "Installing yt-dlp, please wait...";
+                statusLabel.ForeColor = foregroundColor;
+
+                var installed = await InstallYtDlp();
+                
+                if (installed)
+                {
+                    ytdlpLabel.Text = currentLanguage == AppLanguage.Turkish ? "✅ yt-dlp kurulu" : "✅ yt-dlp installed";
+                    ytdlpLabel.ForeColor = successColor;
+                    statusLabel.Text = currentLanguage == AppLanguage.Turkish ? "✅ yt-dlp başarıyla kuruldu!" : "✅ yt-dlp installed successfully!";
+                    statusLabel.ForeColor = successColor;
+                    installButton.Visible = false;
+                }
+                else
+                {
+                    statusLabel.Text = currentLanguage == AppLanguage.Turkish ? "❌ yt-dlp kurulumu başarısız!" : "❌ yt-dlp installation failed!";
+                    statusLabel.ForeColor = errorColor;
+                    installButton.Text = currentLanguage == AppLanguage.Turkish ? "Tekrar Dene" : "Retry";
+                    installButton.Enabled = true;
+                }
+            };
+
+            checkForm.ShowDialog(this);
+        }
+
+        // Event Handlers
+        private void PasteButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (Clipboard.ContainsText())
+                {
+                    var clipboardText = Clipboard.GetText().Trim();
+                    if (Uri.TryCreate(clipboardText, UriKind.Absolute, out var uri) &&
+                        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+                    {
+                        urlTextBox.Text = clipboardText;
+                        urlTextBox.ForeColor = currentTheme == AppTheme.Dark ?
+                            Color.FromArgb(243, 244, 246) : Color.FromArgb(17, 24, 39);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void UrlTextBox_TextChanged(object sender, EventArgs e)
+        {
+            var url = urlTextBox.Text.Trim();
+
+            // Geçerli URL mi kontrol et
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            {
+                // Aynı URL için tekrar sorgu yapma
+                if (url != lastPreviewUrl)
+                {
+                    lastPreviewUrl = url;
+                    _ = LoadVideoPreviewAsync(url);
+                }
             }
             else
             {
-
-                pauseResumeButton.Enabled = false;
-                cancelButton.Enabled = false;
+                // Geçersiz URL, önizlemeyi gizle
+                HidePreview();
+                lastPreviewUrl = "";
             }
         }
 
-        private void UpdateProgress(int percentage, string status = "", string currentFile = "", string speed = "", string timeRemaining = "")
+        private async Task LoadVideoPreviewAsync(string url)
+        {
+            // Önceki işlemi iptal et
+            previewCancellationTokenSource?.Cancel();
+            previewCancellationTokenSource = new CancellationTokenSource();
+            var token = previewCancellationTokenSource.Token;
+
+            try
+            {
+                // UI'ı yükleniyor moduna al
+                ShowPreviewLoading();
+
+                // yt-dlp ile video bilgilerini al
+                var videoInfo = await GetVideoInfoAsync(url, token);
+
+                if (token.IsCancellationRequested) return;
+
+                if (videoInfo != null)
+                {
+                    // Önizleme bilgilerini göster
+                    ShowPreview(videoInfo);
+                }
+                else
+                {
+                    HidePreview();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // İptal edildi, normal
+            }
+            catch (Exception)
+            {
+                HidePreview();
+            }
+        }
+
+        private async Task<VideoInfo?> GetVideoInfoAsync(string url, CancellationToken token)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    var ytDlpPath = GetYtDlpPath();
+                    if (string.IsNullOrEmpty(ytDlpPath)) return null;
+
+                    // FFmpeg location
+                    string ffmpegLocationArg = "";
+                    if (File.Exists(Path.Combine(Application.StartupPath, "ffmpeg.exe")))
+                    {
+                        ffmpegLocationArg = $"--ffmpeg-location \"{Application.StartupPath}\"";
+                    }
+
+                    // Kick ve Twitch için özel User-Agent ve headerlar
+                    var extraArgs = "";
+                    if (url.Contains("kick.com") || url.Contains("twitch.tv"))
+                    {
+                        extraArgs = "--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\" --referer \"" + url + "\"";
+                    }
+
+                    var startInfo = new ProcessStartInfo
+                    {
+                        FileName = "python",
+                        Arguments = $"-m yt_dlp {extraArgs} {ffmpegLocationArg} --no-download --print-json \"{url}\"",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true,
+                        StandardOutputEncoding = System.Text.Encoding.UTF8
+                    };
+
+                    using var process = new Process { StartInfo = startInfo };
+                    process.Start();
+
+                    var output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit(15000); // 15 saniye timeout
+
+                    if (token.IsCancellationRequested) return null;
+
+                    if (!string.IsNullOrEmpty(output))
+                    {
+                        using var doc = JsonDocument.Parse(output);
+                        var root = doc.RootElement;
+
+                        // Thumbnail URL'i al
+                        string thumbnailUrl = "";
+                        
+                        // 1. Önce thumbnails array'inden en iyi JPG'yi bulmaya çalış (Windows Forms WebP sevmeyebilir)
+                        if (root.TryGetProperty("thumbnails", out var thumbnails) && thumbnails.ValueKind == JsonValueKind.Array)
+                        {
+                            var thumbList = thumbnails.EnumerateArray().ToList();
+                            
+                            // JPG olanları bul
+                            var jpgThumbs = thumbList.Where(t => 
+                                t.TryGetProperty("url", out var u) && 
+                                (u.GetString()?.Contains(".jpg") == true)).ToList();
+
+                            if (jpgThumbs.Any())
+                            {
+                                // JPG'lerin en sonuncusu (genelde en yüksek kalite)
+                                var bestJpg = jpgThumbs.Last();
+                                if (bestJpg.TryGetProperty("url", out var url)) 
+                                    thumbnailUrl = url.GetString() ?? "";
+                            }
+                            else if (thumbList.Any())
+                            {
+                                // JPG yoksa listenin en sonuncusu (WebP olabilir)
+                                var last = thumbList.Last();
+                                if (last.TryGetProperty("url", out var url)) 
+                                    thumbnailUrl = url.GetString() ?? "";
+                            }
+                        }
+                        
+                        // 2. Eğer hala boşsa, root 'thumbnail' alanına bak
+                        if (string.IsNullOrEmpty(thumbnailUrl) && root.TryGetProperty("thumbnail", out var thumb))
+                        {
+                            thumbnailUrl = thumb.GetString() ?? "";
+                        }
+
+                        var info = new VideoInfo
+                        {
+                            Title = root.TryGetProperty("title", out var title) ? title.GetString() ?? "" : "",
+                            Channel = root.TryGetProperty("uploader", out var uploader) ? uploader.GetString() ?? "" :
+                                     (root.TryGetProperty("channel", out var channel) ? channel.GetString() ?? "" : ""),
+                            Duration = root.TryGetProperty("duration", out var duration) && duration.ValueKind == JsonValueKind.Number ? duration.GetInt32() : 0,
+                            ThumbnailUrl = thumbnailUrl
+                        };
+
+                        return info;
+                    }
+                }
+                catch { }
+                return null;
+            }, token);
+        }
+
+        private void ShowPreviewLoading()
         {
             if (InvokeRequired)
             {
-                BeginInvoke(() => UpdateProgress(percentage, status, currentFile, speed, timeRemaining));
+                Invoke(new Action(ShowPreviewLoading));
                 return;
             }
 
-            if (percentage >= 0 && percentage <= 100)
-            {
-                progressBar.Value = percentage;
-                progressPercentageLabel.Text = $"{percentage}%";
-            }
+            // Önce formu genişlet
+            ExpandFormForPreview();
 
-            if (!string.IsNullOrEmpty(status))
-                progressStatusLabel.Text = status;
-
-            if (!string.IsNullOrEmpty(currentFile))
-                currentFileLabel.Text = $"📁 {currentFile}";
-
-            if (!string.IsNullOrEmpty(speed))
-                speedLabel.Text = $"⚡ {speed}";
-
-            if (!string.IsNullOrEmpty(timeRemaining))
-                timeRemainingLabel.Text = $"⏱️ {timeRemaining}";
+            previewPanel.Visible = true;
+            thumbnailPictureBox.Visible = true; // Thumbnail alanını göster (siyah kutu)
+            thumbnailPictureBox.Image = null;   // Önce temizle
+            videoTitleLabel.Visible = false;
+            videoChannelLabel.Visible = false;
+            videoDurationLabel.Visible = false;
+            previewLoadingLabel.Visible = true;
+            previewLoadingLabel.Text = currentLanguage == AppLanguage.Turkish ?
+                "Video bilgileri yükleniyor..." : "Loading video info...";
         }
 
-        private void UpdateProgressText(string status = "", string currentFile = "", string speed = "", string timeRemaining = "")
+        private void ShowPreview(VideoInfo info)
         {
             if (InvokeRequired)
             {
-                BeginInvoke(() => UpdateProgressText(status, currentFile, speed, timeRemaining));
+                Invoke(new Action(() => ShowPreview(info)));
                 return;
             }
 
-            if (!string.IsNullOrEmpty(status))
-                progressStatusLabel.Text = status;
+            previewLoadingLabel.Visible = false;
+            
+            // Tüm kontrolleri görünür yap
+            thumbnailPictureBox.Visible = true;
+            videoTitleLabel.Visible = true;
+            videoChannelLabel.Visible = true;
+            videoDurationLabel.Visible = true;
 
-            if (!string.IsNullOrEmpty(currentFile))
-                currentFileLabel.Text = $"📁 {currentFile}";
+            // Başlık - AutoEllipsis ile otomatik kısalt
+            videoTitleLabel.Text = info.Title ?? "";
 
-            if (!string.IsNullOrEmpty(speed))
-                speedLabel.Text = $"⚡ {speed}";
+            // Kanal - güvenli kontrol
+            videoChannelLabel.Text = !string.IsNullOrWhiteSpace(info.Channel) ? info.Channel : "Bilinmeyen Kanal";
 
-            if (!string.IsNullOrEmpty(timeRemaining))
-                timeRemainingLabel.Text = $"⏱️ {timeRemaining}";
-        }
-
-        private void LogMessage(string message, System.Drawing.Color color)
-        {
-            if (logTextBox.InvokeRequired)
+            // Süre
+            if (info.Duration > 0)
             {
-                logTextBox.Invoke(() => LogMessage(message, color));
-                return;
-            }
-
-            logTextBox.SelectionStart = logTextBox.TextLength;
-            logTextBox.SelectionLength = 0;
-            logTextBox.SelectionColor = color;
-            logTextBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}\n");
-            logTextBox.SelectionColor = logTextBox.ForeColor;
-            logTextBox.ScrollToCaret();
-        }
-
-        private void ShowCriticalError(string message, string title = "Hata")
-        {
-            MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
-
-        private void ShowWarning(string message, string title = "Uyarı")
-        {
-            MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
-
-        private void ShowSuccess(string message, string title = "Başarılı")
-        {
-            MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        private void VideoRadioButton_CheckedChanged(object sender, EventArgs e)
-        {
-            if (videoRadioButton.Checked)
-            {
-                isVideoMode = true;
-                qualityComboBox.Enabled = true;
-                subtitleCheckBox.Enabled = true;
-            }
-        }
-
-        private void AudioRadioButton_CheckedChanged(object sender, EventArgs e)
-        {
-            if (audioRadioButton.Checked)
-            {
-                isVideoMode = false;
-                qualityComboBox.Enabled = false;
-                subtitleCheckBox.Enabled = false;
-                subtitleCheckBox.Checked = false;
-            }
-        }
-
-        private void PauseResumeButton_Click(object sender, EventArgs e)
-        {
-            if (currentDownloadProcess == null || currentDownloadProcess.HasExited)
-                return;
-
-            if (isPaused)
-            {
-
-                ResumeDownload();
+                var span = TimeSpan.FromSeconds(info.Duration);
+                videoDurationLabel.Text = span.Hours > 0
+                    ? $"⏱ {span:hh\\:mm\\:ss}"
+                    : $"⏱ {span:mm\\:ss}";
             }
             else
             {
+                videoDurationLabel.Text = "";
+            }
 
-                PauseDownload();
+            // Thumbnail varsa yükle, yoksa boş bırak
+            if (!string.IsNullOrWhiteSpace(info.ThumbnailUrl))
+            {
+                System.Diagnostics.Debug.WriteLine($"Thumbnail URL: {info.ThumbnailUrl}");
+                _ = LoadThumbnailAsync(info.ThumbnailUrl);
+            }
+            else
+            {
+                thumbnailPictureBox.Image = null;
+                System.Diagnostics.Debug.WriteLine("Thumbnail URL boş!");
+            }
+
+            previewPanel.Visible = true;
+        }
+
+        private async Task LoadThumbnailAsync(string thumbnailUrl)
+        {
+            if (string.IsNullOrWhiteSpace(thumbnailUrl)) return;
+
+            try
+            {
+                // WebP dosyaları Windows Forms'da desteklenmiyor, skip et
+                if (thumbnailUrl.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
+                {
+                    System.Diagnostics.Debug.WriteLine("WebP thumbnail skipped - not supported by Windows Forms");
+                    // Placeholder olarak boş bırak, video bilgileri yine de gösterilecek
+                    return;
+                }
+
+                // Byte array olarak indir (Stream sorunlarını önlemek için)
+                var imageBytes = await httpClient.GetByteArrayAsync(thumbnailUrl);
+                
+                using (var ms = new MemoryStream(imageBytes))
+                using (var tempImage = Image.FromStream(ms))
+                {
+                    // Bitmap kopyası oluştur (Stream bağımlılığını koparmak için)
+                    var safeImage = new Bitmap(tempImage);
+                    
+                    if (IsDisposed || !IsHandleCreated) return;
+
+                    Invoke(new Action(() =>
+                    {
+                        try
+                        {
+                            var oldImage = thumbnailPictureBox.Image;
+                            thumbnailPictureBox.Image = safeImage;
+                            oldImage?.Dispose();
+                            thumbnailPictureBox.Refresh();
+                        }
+                        catch
+                        {
+                            safeImage?.Dispose();
+                        }
+                    }));
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Thumbnail error: {ex.Message}");
+            }
+        }
+
+        private void HidePreview()
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action(HidePreview));
+                return;
+            }
+
+            if (previewPanel.Visible)
+            {
+                previewPanel.Visible = false;
+                CollapseFormFromPreview();
+            }
+        }
+
+        private void ExpandFormForPreview()
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action(ExpandFormForPreview));
+                return;
+            }
+
+            // Zaten genişlemiş mi kontrol et
+            if (this.ClientSize.Height > 520) return;
+
+            // Önizleme paneli görünür olacak, diğer kontrolleri aşağı kaydır (115px)
+            qualityLabel.Location = new Point(30, 260);
+            qualityComboBox.Location = new Point(30, 290);
+            subtitleCheckBox.Location = new Point(300, 297);
+            pathLabel.Location = new Point(30, 345);
+            pathTextBox.Location = new Point(30, 375);
+            browseButton.Location = new Point(625, 373);
+            downloadButton.Location = new Point(30, 435);
+            progressPanel.Location = new Point(30, 505);
+
+            // Form boyutunu büyüt
+            this.MinimumSize = new Size(788, 620);
+            this.MaximumSize = new Size(788, 620);
+            this.ClientSize = new Size(770, 575);
+        }
+
+        private void CollapseFormFromPreview()
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action(CollapseFormFromPreview));
+                return;
+            }
+
+            // Kontrolleri orijinal konumlarına geri getir
+            qualityLabel.Location = new Point(30, 145);
+            qualityComboBox.Location = new Point(30, 175);
+            subtitleCheckBox.Location = new Point(300, 182);
+            pathLabel.Location = new Point(30, 230);
+            pathTextBox.Location = new Point(30, 260);
+            browseButton.Location = new Point(625, 258);
+            downloadButton.Location = new Point(30, 320);
+            progressPanel.Location = new Point(30, 390);
+
+            // Form boyutunu küçült
+            this.MinimumSize = new Size(788, 505);
+            this.MaximumSize = new Size(788, 505);
+            this.ClientSize = new Size(770, 458);
+        }
+
+        private class VideoInfo
+        {
+            public string Title { get; set; } = "";
+            public string Channel { get; set; } = "";
+            public int Duration { get; set; }
+            public string ThumbnailUrl { get; set; } = "";
+        }
+
+        private void VideoFormatButton_Click(object sender, EventArgs e)
+        {
+            isVideoMode = true;
+            UpdateFormatButtons();
+        }
+
+        private void AudioFormatButton_Click(object sender, EventArgs e)
+        {
+            isVideoMode = false;
+            UpdateFormatButtons();
+        }
+
+        private void BrowseButton_Click(object sender, EventArgs e)
+        {
+            using var folderDialog = new FolderBrowserDialog();
+            folderDialog.Description = currentLanguage == AppLanguage.Turkish ?
+                "İndirilen videoların kaydedileceği klasörü seçin" :
+                "Select the folder to save downloaded videos";
+            folderDialog.SelectedPath = pathTextBox.Text;
+
+            if (folderDialog.ShowDialog() == DialogResult.OK)
+            {
+                pathTextBox.Text = folderDialog.SelectedPath;
             }
         }
 
         private void CancelButton_Click(object sender, EventArgs e)
         {
             CancelDownload();
-        }
-
-        private void PauseDownload()
-        {
-            try
-            {
-                if (currentDownloadProcess != null && !currentDownloadProcess.HasExited)
-                {
-
-
-                    isPaused = true;
-                    pauseResumeButton.Text = GetText("Resume");
-                    pauseResumeButton.BackColor = Color.FromArgb(40, 167, 69); // Green
-                    
-                    LogMessage("İndirme duraklatıldı", Color.Orange);
-                    UpdateProgress(-1, "Duraklatıldı...");
-                }
-            }
-            catch (Exception ex)
-            {
-                LogMessage($"Duraklat hatası: {ex.Message}", Color.Red);
-            }
-        }
-
-        private void ResumeDownload()
-        {
-            try
-            {
-                isPaused = false;
-                pauseResumeButton.Text = GetText("Pause");
-                pauseResumeButton.BackColor = Color.FromArgb(255, 193, 7); // Yellow
-                
-                LogMessage("İndirme devam ediyor", Color.LimeGreen);
-                UpdateProgress(-1, "Devam ediyor...");
-                
-
-
-
-            }
-            catch (Exception ex)
-            {
-                LogMessage($"Devam ettirme hatası: {ex.Message}", Color.Red);
-            }
         }
 
         private void CancelDownload()
@@ -972,182 +1359,33 @@ Technologies:
                     isCancelled = true;
                     currentDownloadProcess.Kill();
                     currentDownloadProcess = null;
-                    
-                    LogMessage("İndirme iptal edildi", Color.Red);
-                    UpdateProgress(0, "İptal edildi");
-                    ShowProgress(false);
-                    
+
+                    UpdateProgress(0, currentLanguage == AppLanguage.Turkish ? "İptal edildi" : "Cancelled");
+                    progressPanel.Visible = false;
 
                     downloadButton.Enabled = true;
                     downloadButton.Text = GetText("Download");
                     statusLabel.Text = GetText("Ready");
                 }
             }
-            catch (Exception ex)
-            {
-                LogMessage($"İptal hatası: {ex.Message}", Color.Red);
-            }
-        }
-
-        private void BrowseButton_Click(object sender, EventArgs e)
-        {
-            using var folderDialog = new FolderBrowserDialog();
-            folderDialog.Description = "İndirilen videoların kaydedileceği klasörü seçin";
-            folderDialog.SelectedPath = pathTextBox.Text;
-
-            if (folderDialog.ShowDialog() == DialogResult.OK)
-            {
-                pathTextBox.Text = folderDialog.SelectedPath;
-            }
-        }
-
-
-
-        private async void UpdateButton_Click(object sender, EventArgs e)
-        {
-            updateButton.Enabled = false;
-            downloadButton.Enabled = false;
-            ShowProgress(true);
-            UpdateProgress(0, "Sistem gereksinimleri kontrol ediliyor...");
-
-            try
-            {
-                bool allDependenciesOk = true;
-                var missingComponents = new List<string>();
-
-                UpdateProgress(10, "Python kontrolü yapılıyor...");
-                LogMessage("Python kurulum kontrolü başlatıldı", Color.LimeGreen);
-
-                if (!await CheckPythonInstalled())
-                {
-                    missingComponents.Add("Python");
-                    allDependenciesOk = false;
-                    LogMessage("❌ Python bulunamadı", Color.Red);
-
-                    if (MessageBox.Show("Python bulunamadı! Otomatik olarak kurulmasını ister misiniz?\n\n" +
-                        "Bu işlem birkaç dakika sürebilir ve internet bağlantısı gerekir.",
-                        "Python Kurulumu", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                    {
-                        UpdateProgress(20, "Python kuruluyor...");
-                        if (await InstallPython())
-                        {
-                            LogMessage("✅ Python başarıyla kuruldu", Color.LimeGreen);
-                            missingComponents.Remove("Python");
-                        }
-                        else
-                        {
-                            LogMessage("❌ Python kurulumu başarısız", Color.Red);
-                        }
-                    }
-                }
-                else
-                {
-                    LogMessage("✅ Python kurulu", Color.LimeGreen);
-                }
-
-                UpdateProgress(40, "yt-dlp kontrolü yapılıyor...");
-                LogMessage("yt-dlp kurulum/güncelleme kontrolü başlatıldı", Color.LimeGreen);
-
-                if (!await CheckYtDlpInstalled())
-                {
-                    missingComponents.Add("yt-dlp");
-                    LogMessage("❌ yt-dlp bulunamadı", Color.Red);
-                }
-
-                UpdateProgress(50, "yt-dlp kuruluyor/güncelleniyor...");
-                if (await InstallYtDlp())
-                {
-                    LogMessage("✅ yt-dlp başarıyla kuruldu/güncellendi", Color.LimeGreen);
-                    if (missingComponents.Contains("yt-dlp"))
-                        missingComponents.Remove("yt-dlp");
-                }
-                else
-                {
-                    LogMessage("❌ yt-dlp kurulumu/güncellemesi başarısız", Color.Red);
-                    allDependenciesOk = false;
-                }
-
-                UpdateProgress(70, "FFmpeg kontrolü yapılıyor...");
-                LogMessage("FFmpeg kurulum kontrolü başlatıldı", Color.LimeGreen);
-
-                if (!await CheckFFmpegInstalled())
-                {
-                    missingComponents.Add("FFmpeg");
-                    LogMessage("⚠️ FFmpeg bulunamadı (opsiyonel)", Color.Orange);
-
-                    if (MessageBox.Show("FFmpeg bulunamadı! Bu ses/video birleştirme için gereklidir.\n\n" +
-                        "Otomatik olarak kurulmasını ister misiniz?\n\n" +
-                        "Not: Bu işlem winget gerektirir ve birkaç dakika sürebilir.",
-                        "FFmpeg Kurulumu", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                    {
-                        UpdateProgress(80, "FFmpeg kuruluyor...");
-                        if (await InstallFFmpeg())
-                        {
-                            LogMessage("✅ FFmpeg başarıyla kuruldu", Color.LimeGreen);
-                            missingComponents.Remove("FFmpeg");
-                        }
-                        else
-                        {
-                            LogMessage("⚠️ FFmpeg kurulumu başarısız - manuel kurulum gerekebilir", Color.Orange);
-                        }
-                    }
-                }
-                else
-                {
-                    LogMessage("✅ FFmpeg kurulu", Color.LimeGreen);
-                }
-
-                UpdateProgress(100, "Kontrol tamamlandı!");
-
-                if (missingComponents.Count == 0)
-                {
-                    statusLabel.Text = "Tüm gereksinimler karşılandı!";
-                    ShowSuccess("🎉 Sistem Gereksinim Kontrolü Tamamlandı!\n\n" +
-                        "✅ Python kurulu ve çalışıyor\n" +
-                        "✅ yt-dlp güncel sürümde\n" +
-                        "✅ FFmpeg kurulu ve çalışıyor\n\n" +
-                        "Program tam performansla çalışmaya hazır!", "Sistem Hazır");
-                    LogMessage("🎉 Tüm sistem gereksinimleri karşılandı", Color.LimeGreen);
-                }
-                else
-                {
-                    var missingList = string.Join(", ", missingComponents);
-                    statusLabel.Text = $"Eksik gereksinimler: {missingList}";
-                    ShowWarning($"⚠️ Bazı gereksinimler eksik:\n\n" +
-                        $"❌ {string.Join("\n❌ ", missingComponents)}\n\n" +
-                        "Program çalışabilir ancak bazı özellikler sınırlı olabilir.\n\n" +
-                        "Manuel kurulum için:\n" +
-                        "• Python: https://www.python.org/downloads/\n" +
-                        "• FFmpeg: winget install ffmpeg",
-                        "Eksik Gereksinimler");
-                    LogMessage($"⚠️ Eksik gereksinimler: {missingList}", Color.Orange);
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowCriticalError($"Sistem kontrolü sırasında hata: {ex.Message}", "Hata");
-                LogMessage($"❌ Sistem kontrolü hatası: {ex.Message}", Color.Red);
-            }
-            finally
-            {
-                updateButton.Enabled = true;
-                downloadButton.Enabled = true;
-                ShowProgress(false);
-                statusLabel.Text = "Hazır";
-            }
+            catch { }
         }
 
         private async void DownloadButton_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(urlTextBox.Text))
             {
-                ShowWarning("Lütfen bir video URL'si girin!");
+                ShowWarning(currentLanguage == AppLanguage.Turkish ?
+                    "Lütfen bir video URL'si girin!" :
+                    "Please enter a video URL!");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(pathTextBox.Text))
             {
-                ShowWarning("Lütfen indirme yolunu belirtin!");
+                ShowWarning(currentLanguage == AppLanguage.Turkish ?
+                    "Lütfen indirme yolunu belirtin!" :
+                    "Please specify download path!");
                 return;
             }
 
@@ -1157,12 +1395,23 @@ Technologies:
             }
             catch (Exception ex)
             {
-                ShowCriticalError($"İndirme klasörü oluşturulamadı: {ex.Message}");
+                ShowCriticalError(currentLanguage == AppLanguage.Turkish ?
+                    $"İndirme klasörü oluşturulamadı: {ex.Message}" :
+                    $"Could not create download folder: {ex.Message}");
                 return;
             }
 
             downloadButton.Enabled = false;
-            ShowProgress(true);
+            progressPanel.Visible = true;
+            
+            // Form yüksekliğini artır (progress panel için)
+            if (this.ClientSize.Height < 490)
+            {
+                this.MinimumSize = new Size(788, 532);
+                this.MaximumSize = new Size(788, 532);
+                this.ClientSize = new Size(770, 485);
+            }
+            
             downloadStartTime = DateTime.Now;
 
             try
@@ -1171,13 +1420,22 @@ Technologies:
             }
             catch (Exception ex)
             {
-                ShowCriticalError($"İndirme hatası: {ex.Message}");
+                ShowCriticalError($"{GetText("Error")}: {ex.Message}");
             }
             finally
             {
                 downloadButton.Enabled = true;
-                ShowProgress(false);
-                statusLabel.Text = "Hazır";
+                progressPanel.Visible = false;
+                
+                // Form yüksekliğini küçült
+                if (!previewPanel.Visible && this.ClientSize.Height > 470)
+                {
+                    this.MinimumSize = new Size(788, 505);
+                    this.MaximumSize = new Size(788, 505);
+                    this.ClientSize = new Size(770, 458);
+                }
+                
+                statusLabel.Text = GetText("Ready");
             }
         }
 
@@ -1186,69 +1444,67 @@ Technologies:
             var url = urlTextBox.Text.Trim();
             var outputPath = pathTextBox.Text.Trim();
 
-            UpdateProgress(5, "İndirme başlatılıyor...");
+            UpdateProgress(5, currentLanguage == AppLanguage.Turkish ? "Başlatılıyor..." : "Starting...");
 
-            UpdateProgress(10, "Python kontrolü yapılıyor...");
+            // Check Python
+            UpdateProgress(10, currentLanguage == AppLanguage.Turkish ? "Python kontrol ediliyor..." : "Checking Python...");
             if (!await CheckPythonInstalled())
             {
-                ShowCriticalError("Python bulunamadı!\n\nLütfen Python'u kurun ve PATH'e ekleyin.\nKurulum için: https://www.python.org/downloads/");
+                ShowCriticalError(currentLanguage == AppLanguage.Turkish ?
+                    "Python bulunamadı!\n\nLütfen Python'u kurun: https://www.python.org/downloads/" :
+                    "Python not found!\n\nPlease install Python: https://www.python.org/downloads/");
                 return;
             }
 
-            UpdateProgress(20, "yt-dlp kontrolü yapılıyor...");
+            // Check yt-dlp
+            UpdateProgress(20, currentLanguage == AppLanguage.Turkish ? "yt-dlp kontrol ediliyor..." : "Checking yt-dlp...");
             if (!await CheckYtDlpInstalled())
             {
-                UpdateProgress(25, "yt-dlp kuruluyor...");
+                UpdateProgress(25, currentLanguage == AppLanguage.Turkish ? "yt-dlp kuruluyor..." : "Installing yt-dlp...");
                 if (!await InstallYtDlp())
                 {
-                    ShowCriticalError("yt-dlp kurulumu başarısız!\n\nInternet bağlantınızı kontrol edin.");
+                    ShowCriticalError(currentLanguage == AppLanguage.Turkish ?
+                        "yt-dlp kurulumu başarısız!" :
+                        "yt-dlp installation failed!");
                     return;
                 }
             }
 
-            UpdateProgress(35, "FFmpeg kontrolü yapılıyor...");
-            if (!await CheckFFmpegInstalled())
+            // Check FFmpeg
+            UpdateProgress(30, currentLanguage == AppLanguage.Turkish ? "FFmpeg kontrol ediliyor..." : "Checking FFmpeg...");
+            bool ffmpegInstalled = await CheckFFmpegInstalled();
+            string ffmpegLocationArg = "";
+            
+            if (File.Exists(Path.Combine(Application.StartupPath, "ffmpeg.exe")))
             {
-                ShowWarning("FFmpeg bulunamadı!\n\nSes birleştirme sorunları yaşanabilir.\n\nKurulum için:\n1. https://ffmpeg.org/download.html\n2. winget install ffmpeg");
+                ffmpegLocationArg = $"--ffmpeg-location \"{Application.StartupPath}\"";
+            }
+            else if (!ffmpegInstalled && (url.Contains("twitch.tv") || url.Contains("kick.com")))
+            {
+                 ShowWarning(currentLanguage == AppLanguage.Turkish ? 
+                    "FFmpeg bulunamadı! Twitch ve Kick indirmeleri için FFmpeg gereklidir.\nLütfen ffmpeg.exe'yi uygulama klasörüne atın." :
+                    "FFmpeg not found! FFmpeg is required for Twitch and Kick downloads.\nPlease place ffmpeg.exe in the application folder.");
             }
 
-            bool useSelectedQuality = true;
+            // Build arguments
             var qualityArg = GetQualityArgument();
             var subtitleArg = subtitleCheckBox.Checked ? "--embed-subs --write-auto-sub" : "";
-
-            var arguments = $"-m yt_dlp --no-playlist {qualityArg} {subtitleArg} --embed-thumbnail --verbose -o \"{Path.Combine(outputPath, "%(title)s.%(ext)s")}\" \"{url}\"";
-
-            if (qualityComboBox.SelectedIndex > 0 && isVideoMode)
+            
+            // Kick ve Twitch için özel argümanlar
+            var extraArgs = "";
+            if (url.Contains("kick.com"))
             {
-                UpdateProgress(37, "Seçilen kalite kontrol ediliyor...");
-                bool qualityExists = await CheckIfQualityExists(url, qualityArg);
-                
-                if (!qualityExists)
-                {
-                    var selectedQuality = GetSelectedQuality();
-                    var message = currentLanguage == AppLanguage.Turkish
-                        ? $"Seçilen kalite ({selectedQuality}) bu videoda mevcut değil.\n\nEn yüksek kalitede indirmeye devam edilsin mi?"
-                        : $"Selected quality ({selectedQuality}) is not available for this video.\n\nContinue with highest available quality?";
-                    
-                    var title = currentLanguage == AppLanguage.Turkish ? "Kalite Bulunamadı" : "Quality Not Found";
-                    
-                    var result = MessageBox.Show(message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                    if (result == DialogResult.Yes)
-                    {
-                        qualityArg = "--format \"(bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio)/best[ext=mp4]/best\"";
-                        arguments = $"-m yt_dlp --no-playlist {qualityArg} {subtitleArg} --embed-thumbnail --verbose -o \"{Path.Combine(outputPath, "%(title)s.%(ext)s")}\" \"{url}\"";
-                        useSelectedQuality = false;
-                    }
-                    else
-                    {
-                        UpdateProgress(0, "İndirme iptal edildi");
-                        statusLabel.Text = currentLanguage == AppLanguage.Turkish ? "İndirme iptal edildi" : "Download cancelled";
-                        return;
-                    }
-                }
+                extraArgs = "--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\" --referer \"" + url + "\"";
+            }
+            else if (url.Contains("twitch.tv"))
+            {
+                // Twitch HLS download hatası için ffmpeg downloader kullan
+                extraArgs = "--downloader ffmpeg";
             }
 
-            UpdateProgress(40, "Video indiriliyor...");
+            var arguments = $"-m yt_dlp {extraArgs} {ffmpegLocationArg} --no-playlist {qualityArg} {subtitleArg} --embed-thumbnail --merge-output-format mp4 -o \"{Path.Combine(outputPath, "%(title)s.%(ext)s")}\" \"{url}\"";
+
+            UpdateProgress(0, GetText("Downloading"));
 
             var processInfo = new ProcessStartInfo
             {
@@ -1265,20 +1521,13 @@ Technologies:
             isCancelled = false;
             isPaused = false;
 
-            pauseResumeButton.Text = GetText("Pause");
-            pauseResumeButton.BackColor = Color.FromArgb(255, 193, 7);
-            pauseResumeButton.Enabled = true;
             cancelButton.Enabled = true;
 
             process.OutputDataReceived += (sender, e) =>
             {
                 if (!string.IsNullOrEmpty(e.Data) && !isCancelled)
                 {
-                    if (!IsDebugMessage(e.Data))
-                    {
-                        LogMessage(e.Data, System.Drawing.Color.LimeGreen);
-                        ProcessDownloadOutput(e.Data);
-                    }
+                    ProcessDownloadOutput(e.Data);
                 }
             };
 
@@ -1286,11 +1535,7 @@ Technologies:
             {
                 if (!string.IsNullOrEmpty(e.Data) && !isCancelled)
                 {
-                    if (!IsDebugMessage(e.Data))
-                    {
-                        LogMessage(e.Data, System.Drawing.Color.Orange);
-                        ProcessDownloadOutput(e.Data);
-                    }
+                    ProcessDownloadOutput(e.Data);
                 }
             };
 
@@ -1300,59 +1545,32 @@ Technologies:
 
             await Task.Run(() => process.WaitForExit());
 
-            pauseResumeButton.Enabled = false;
             cancelButton.Enabled = false;
             currentDownloadProcess = null;
 
             if (process.ExitCode == 0)
             {
-                UpdateProgress(100, "İndirme tamamlandı!");
-                statusLabel.Text = isVideoMode ? "Video başarıyla indirildi!" : "Ses başarıyla indirildi!";
+                UpdateProgress(100, GetText("Completed"));
+                statusLabel.Text = isVideoMode ?
+                    (currentLanguage == AppLanguage.Turkish ? "Video başarıyla indirildi!" : "Video downloaded successfully!") :
+                    (currentLanguage == AppLanguage.Turkish ? "Ses başarıyla indirildi!" : "Audio downloaded successfully!");
 
-                await CheckVideoResolution(outputPath);
+                var message = currentLanguage == AppLanguage.Turkish ?
+                    "İndirme tamamlandı!\n\nKlasörü açmak ister misiniz?" :
+                    "Download complete!\n\nWould you like to open the folder?";
 
-                var message = isVideoMode ? 
-                    "Video başarıyla indirildi!\n\nİndirme klasörünü açmak ister misiniz?" :
-                    "Ses dosyası başarıyla indirildi!\n\nİndirme klasörünü açmak ister misiniz?";
-                    
-                if (MessageBox.Show(message, "Başarılı", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                if (MessageBox.Show(message, GetText("Success"), MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 {
                     Process.Start("explorer.exe", outputPath);
                 }
             }
             else
             {
-                string errorMessage = "İndirme başarısız!\n\n";
-
-                switch (process.ExitCode)
-                {
-                    case 1:
-                        errorMessage += "Genel hata - Video URL'sini kontrol edin.";
-                        break;
-                    case 2:
-                        errorMessage += "Video bulunamadı veya erişim engellendi.\n\n" +
-                                      "Olası çözümler:\n" +
-                                      "• URL'nin doğru olduğundan emin olun\n" +
-                                      "• Video'nun herkese açık olduğunu kontrol edin\n" +
-                                      "• Farklı bir kalite seçeneği deneyin\n" +
-                                      "• yt-dlp'yi güncelleyin";
-                        break;
-                    case 3:
-                        errorMessage += "Dosya sistemi hatası - İndirme klasörünü kontrol edin.";
-                        break;
-                    case 101:
-                        errorMessage += "Ağ bağlantısı hatası - İnternet bağlantınızı kontrol edin.";
-                        break;
-                    default:
-                        errorMessage += $"Hata kodu: {process.ExitCode}\n\n" +
-                                      "• URL'yi kontrol edin\n" +
-                                      "• yt-dlp'yi güncelleyin\n" +
-                                      "• Farklı bir video deneyin";
-                        break;
-                }
-
+                var errorMessage = currentLanguage == AppLanguage.Turkish ?
+                    "İndirme başarısız!\n\nURL'yi kontrol edin ve tekrar deneyin." :
+                    "Download failed!\n\nCheck the URL and try again.";
                 ShowCriticalError(errorMessage);
-                statusLabel.Text = "İndirme başarısız!";
+                statusLabel.Text = currentLanguage == AppLanguage.Turkish ? "İndirme başarısız!" : "Download failed!";
             }
         }
 
@@ -1364,97 +1582,87 @@ Technologies:
                 return;
             }
 
-            if (output.Contains("ERROR:") || output.Contains("error:"))
+            // Debug: statusLabel'a her çıktıyı göster
+            if (output.Contains("[download]") || output.Contains("[ffmpeg]"))
             {
-                if (output.Contains("Video unavailable") || output.Contains("Private video"))
-                {
-                    UpdateProgressText("❌ Video özel veya erişilemez");
-                }
-                else if (output.Contains("not found") || output.Contains("404"))
-                {
-                    UpdateProgressText("❌ Video bulunamadı");
-                }
-                else if (output.Contains("Sign in to confirm your age"))
-                {
-                    UpdateProgressText("❌ Yaş kısıtlaması - giriş gerekli");
-                }
-                else if (output.Contains("blocked"))
-                {
-                    UpdateProgressText("❌ Bölgede engellenen video");
-                }
-                else
-                {
-                    UpdateProgressText("⚠️ İndirme sorunu tespit edildi");
-                }
-                return;
+                statusLabel.Text = output.Length > 80 ? output.Substring(0, 80) + "..." : output;
             }
 
-
-
-            if (output.Contains("[download]"))
+            // Parse progress percentage - yt-dlp format: "[download]   0.1% of  227.22MiB"
+            if (output.Contains("%") && output.Contains("[download]"))
             {
-                if (output.Contains("Downloading webpage"))
+                // Regex ile yüzdeyi bul
+                var match = System.Text.RegularExpressions.Regex.Match(output, @"(\d+\.?\d*)\s*%");
+                if (match.Success)
                 {
-                    UpdateProgress(45, "Sayfa bilgileri alınıyor...");
-                }
-                else if (output.Contains("Downloading video info"))
-                {
-                    UpdateProgress(50, "Video bilgileri alınıyor...");
-                }
-                else if (output.Contains("Downloading m3u8 information"))
-                {
-                    UpdateProgress(55, "Stream bilgileri alınıyor...");
-                }
-            }
-
-            if (output.Contains("%"))
-            {
-                var parts = output.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var part in parts)
-                {
-                    if (part.Contains("%") && part.Length > 1)
+                    if (double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double percent))
                     {
-                        var percentStr = part.Replace("%", "").Trim();
-                        if (double.TryParse(percentStr, out double percent))
-                        {
-                            var adjustedPercent = 60 + (int)(percent * 0.35);
-                            UpdateProgress(adjustedPercent, "İndiriliyor...");
-                            break;
-                        }
+                        UpdateProgress((int)Math.Round(percent), GetText("Downloading"));
                     }
                 }
             }
 
+            // Parse speed
             if (output.Contains("MiB/s") || output.Contains("KiB/s"))
             {
                 var speedMatch = System.Text.RegularExpressions.Regex.Match(output, @"(\d+\.?\d*)\s*(MiB/s|KiB/s)");
                 if (speedMatch.Success)
                 {
-                    UpdateProgressText("", "", speedMatch.Value);
+                    speedLabel.Text = $"⚡ {speedMatch.Value}";
                 }
             }
 
-            if (output.Contains("Destination:") || output.Contains("[download]"))
-            {
-                var fileName = ExtractFileName(output);
-                if (!string.IsNullOrEmpty(fileName))
-                {
-                    UpdateProgressText("", fileName);
-                }
-            }
-
+            // FFmpeg processing
             if (output.Contains("[ffmpeg]"))
             {
-                UpdateProgress(95, "Video işleniyor...");
+                UpdateProgress(95, currentLanguage == AppLanguage.Turkish ? "İşleniyor..." : "Processing...");
             }
         }
 
+        private void UpdateProgress(int percentage, string status)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(() => UpdateProgress(percentage, status));
+                return;
+            }
 
+            if (percentage >= 0 && percentage <= 100)
+            {
+                progressBar.Value = percentage;
+                progressLabel.Text = $"{percentage}%";
+            }
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                statusLabel.Text = status;
+            }
+        }
+
+        private string GetQualityArgument()
+        {
+            if (!isVideoMode)
+            {
+                return "--extract-audio --audio-format mp3 --audio-quality 0";
+            }
+
+            return qualityComboBox.SelectedIndex switch
+            {
+                0 => "--format \"bestvideo+bestaudio/best\"",
+                1 => "--format \"bestvideo[height<=2160]+bestaudio/best[height<=2160]/best\"",
+                2 => "--format \"bestvideo[height<=1440]+bestaudio/best[height<=1440]/best\"",
+                3 => "--format \"bestvideo[height<=1080]+bestaudio/best[height<=1080]/best\"",
+                4 => "--format \"bestvideo[height<=720]+bestaudio/best[height<=720]/best\"",
+                5 => "--format \"bestvideo[height<=480]+bestaudio/best[height<=480]/best\"",
+                6 => "--format \"bestvideo[height<=360]+bestaudio/best[height<=360]/best\"",
+                _ => "--format \"bestvideo+bestaudio/best\""
+            };
+        }
 
         private string GetSelectedQuality()
         {
-            if (qualityComboBox.SelectedIndex < 0) return "En İyi";
-            
+            if (qualityComboBox.SelectedIndex < 0) return currentLanguage == AppLanguage.Turkish ? "En İyi" : "Best";
+
             return qualityComboBox.SelectedIndex switch
             {
                 0 => currentLanguage == AppLanguage.Turkish ? "En İyi" : "Best",
@@ -1463,154 +1671,12 @@ Technologies:
                 3 => "1080p (Full HD)",
                 4 => "720p (HD)",
                 5 => "480p (SD)",
-                6 => currentLanguage == AppLanguage.Turkish ? "360p (Düşük)" : "360p (Low)",
+                6 => "360p",
                 _ => currentLanguage == AppLanguage.Turkish ? "En İyi" : "Best"
             };
         }
 
-        private string ExtractFileName(string output)
-        {
-            try
-            {
-                if (output.Contains("Destination:"))
-                {
-                    var startIndex = output.IndexOf("Destination:") + "Destination:".Length;
-                    var fileName = output.Substring(startIndex).Trim();
-                    return Path.GetFileName(fileName);
-                }
-                else if (output.Contains("[download]") && output.Contains("."))
-                {
-                    var parts = output.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var part in parts)
-                    {
-                        if (part.Contains(".") && part.Length > 5)
-                        {
-                            return Path.GetFileName(part);
-                        }
-                    }
-                }
-            }
-            catch { }
-            return "";
-        }
-
-        private async Task<bool> CheckYtDlpInstalled()
-        {
-            try
-            {
-                var processInfo = new ProcessStartInfo
-                {
-                    FileName = "yt-dlp",
-                    Arguments = "--version",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-
-                using var process = new Process { StartInfo = processInfo };
-                process.Start();
-                var output = await process.StandardOutput.ReadToEndAsync();
-                await Task.Run(() => process.WaitForExit());
-
-                if (process.ExitCode == 0 && !string.IsNullOrEmpty(output))
-                {
-                    return true;
-                }
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                var processInfo = new ProcessStartInfo
-                {
-                    FileName = "python",
-                    Arguments = "-m yt_dlp --version",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-
-                using var process = new Process { StartInfo = processInfo };
-                process.Start();
-                var output = await process.StandardOutput.ReadToEndAsync();
-                await Task.Run(() => process.WaitForExit());
-
-                if (process.ExitCode == 0 && !string.IsNullOrEmpty(output))
-                {
-                    return true;
-                }
-            }
-            catch
-            {
-            }
-
-            return false;
-        }
-
-        private async Task<bool> CheckFFmpegInstalled()
-        {
-            try
-            {
-                // PATH'i yeniden oku (Registry'den)
-                RefreshEnvironmentPath();
-                
-                var processInfo = new ProcessStartInfo
-                {
-                    FileName = "ffmpeg",
-                    Arguments = "-version",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-
-                using var process = new Process { StartInfo = processInfo };
-                process.Start();
-                var output = await process.StandardOutput.ReadToEndAsync();
-                await Task.Run(() => process.WaitForExit());
-
-                if (process.ExitCode == 0 && !string.IsNullOrEmpty(output))
-                {
-                    var versionLine = output.Split('\n').FirstOrDefault(l => l.Contains("ffmpeg version"));
-                    return versionLine != null;
-                }
-            }
-            catch
-            {
-            }
-
-            return false;
-        }
-        
-        private void RefreshEnvironmentPath()
-        {
-            try
-            {
-                // Sistem PATH'ini oku
-                var machinePath = Registry.GetValue(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment", "Path", "") as string;
-                
-                // Kullanıcı PATH'ini oku
-                var userPath = Registry.GetValue(@"HKEY_CURRENT_USER\Environment", "Path", "") as string;
-                
-                // Birleştir ve mevcut process'e uygula
-                var combinedPath = machinePath;
-                if (!string.IsNullOrEmpty(userPath))
-                {
-                    combinedPath = combinedPath + ";" + userPath;
-                }
-                
-                Environment.SetEnvironmentVariable("PATH", combinedPath, EnvironmentVariableTarget.Process);
-            }
-            catch (Exception ex)
-            {
-                LogMessage($"PATH yenileme hatası: {ex.Message}", Color.Orange);
-            }
-        }
-
+        // Dependency checks
         private async Task<bool> CheckPythonInstalled()
         {
             try
@@ -1632,87 +1698,17 @@ Technologies:
 
                 return process.ExitCode == 0 && !string.IsNullOrEmpty(output);
             }
-            catch
-            {
-            }
-
-            return false;
+            catch { return false; }
         }
 
-        private async Task<bool> InstallPython()
-        {
-            try
-            {
-                var storeProcessInfo = new ProcessStartInfo
-                {
-                    FileName = "winget",
-                    Arguments = "install Python.Python.3.11 --silent --accept-source-agreements --accept-package-agreements",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-
-                using var storeProcess = new Process { StartInfo = storeProcessInfo };
-                storeProcess.Start();
-                var output = await storeProcess.StandardOutput.ReadToEndAsync();
-                var error = await storeProcess.StandardError.ReadToEndAsync();
-                await Task.Run(() => storeProcess.WaitForExit());
-
-                if (storeProcess.ExitCode == 0)
-                {
-                    await Task.Delay(5000);
-                    return await CheckPythonInstalled();
-                }
-                else
-                {
-                    LogMessage($"winget kurulumu başarısız: {error}", Color.Orange);
-
-                    var webClient = new System.Net.WebClient();
-                    var tempPath = Path.GetTempPath();
-                    var installerPath = Path.Combine(tempPath, "python-installer.exe");
-
-                    await webClient.DownloadFileTaskAsync(
-                        "https://www.python.org/ftp/python/3.11.0/python-3.11.0-amd64.exe",
-                        installerPath);
-
-                    var installerProcessInfo = new ProcessStartInfo
-                    {
-                        FileName = installerPath,
-                        Arguments = "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0",
-                        UseShellExecute = true,
-                        CreateNoWindow = false
-                    };
-
-                    using var installerProcess = new Process { StartInfo = installerProcessInfo };
-                    installerProcess.Start();
-                    await Task.Run(() => installerProcess.WaitForExit());
-
-                    try { File.Delete(installerPath); } catch { }
-
-                    if (installerProcess.ExitCode == 0)
-                    {
-                        await Task.Delay(10000);
-                        return await CheckPythonInstalled();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogMessage($"Python kurulumu hatası: {ex.Message}", Color.Red);
-            }
-
-            return false;
-        }
-
-        private async Task<bool> InstallFFmpeg()
+        private async Task<bool> CheckYtDlpInstalled()
         {
             try
             {
                 var processInfo = new ProcessStartInfo
                 {
-                    FileName = "winget",
-                    Arguments = "install Gyan.FFmpeg --silent --accept-source-agreements --accept-package-agreements",
+                    FileName = "python",
+                    Arguments = "-m yt_dlp --version",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -1722,25 +1718,41 @@ Technologies:
                 using var process = new Process { StartInfo = processInfo };
                 process.Start();
                 var output = await process.StandardOutput.ReadToEndAsync();
-                var error = await process.StandardError.ReadToEndAsync();
                 await Task.Run(() => process.WaitForExit());
 
-                if (process.ExitCode == 0)
-                {
-                    await Task.Delay(3000);
-                    return await CheckFFmpegInstalled();
-                }
-                else
-                {
-                    LogMessage($"FFmpeg kurulumu başarısız: {error}", Color.Orange);
-                }
+                return process.ExitCode == 0 && !string.IsNullOrEmpty(output);
             }
-            catch (Exception ex)
-            {
-                LogMessage($"FFmpeg kurulumu hatası: {ex.Message}", Color.Orange);
-            }
+            catch { return false; }
+        }
 
-            return false;
+        private string? GetYtDlpPath()
+        {
+            // Python module olarak yt-dlp kullanıyoruz
+            // Bu metot python executable path'ini döndürür
+            try
+            {
+                var processInfo = new ProcessStartInfo
+                {
+                    FileName = "where",
+                    Arguments = "python",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using var process = new Process { StartInfo = processInfo };
+                process.Start();
+                var output = process.StandardOutput.ReadLine();
+                process.WaitForExit();
+
+                if (!string.IsNullOrEmpty(output) && File.Exists(output))
+                {
+                    return "python";
+                }
+            }
+            catch { }
+            return null;
         }
 
         private async Task<bool> InstallYtDlp()
@@ -1768,20 +1780,21 @@ Technologies:
                 }
             }
             catch { }
-
             return false;
         }
 
-        private async Task<bool> CheckIfQualityExists(string url, string qualityArg)
+        private async Task<bool> CheckFFmpegInstalled()
         {
             try
             {
-                var arguments = $"-m yt_dlp --list-formats --no-playlist \"{url}\"";
+                // 1. Check local folder
+                if (File.Exists(Path.Combine(Application.StartupPath, "ffmpeg.exe"))) return true;
 
+                // 2. Check PATH
                 var processInfo = new ProcessStartInfo
                 {
-                    FileName = "python",
-                    Arguments = arguments,
+                    FileName = "ffmpeg",
+                    Arguments = "-version",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -1790,191 +1803,34 @@ Technologies:
 
                 using var process = new Process { StartInfo = processInfo };
                 process.Start();
-                
-                var output = await process.StandardOutput.ReadToEndAsync();
                 await Task.Run(() => process.WaitForExit());
 
-                if (process.ExitCode != 0)
-                {
-                    return false;
-                }
-
-                var selectedHeight = GetSelectedHeightFromIndex(qualityComboBox.SelectedIndex);
-                if (selectedHeight == 0) return true;
-
-                // Daha kapsamlı kalite kontrolü
-                var lines = output.Split('\n');
-                foreach (var line in lines)
-                {
-                    // Farklı format gösterimlerini kontrol et
-                    // Örnek: "1920x1080", "1080p", "x1080", "height=1080"
-                    if (line.Contains($"{selectedHeight}p") || 
-                        line.Contains($"x{selectedHeight}") || 
-                        line.Contains($"{selectedHeight}x") ||
-                        line.Contains($"height={selectedHeight}") ||
-                        System.Text.RegularExpressions.Regex.IsMatch(line, $@"\b{selectedHeight}\b"))
-                    {
-                        LogMessage($"✅ Kalite bulundu: {selectedHeight}p - {line.Trim()}", Color.LimeGreen);
-                        return true;
-                    }
-                }
-
-                LogMessage($"⚠️ Kalite bulunamadı: {selectedHeight}p", Color.Orange);
-                return false;
+                return process.ExitCode == 0;
             }
-            catch (Exception ex)
-            {
-                LogMessage($"Kalite kontrolü hatası: {ex.Message}", Color.Orange);
-                return true; // Hata durumunda indirmeye devam et
-            }
+            catch { return false; }
         }
 
-        private int GetSelectedHeightFromIndex(int index)
+        private void ShowCriticalError(string message)
         {
-            return index switch
-            {
-                0 => 0,
-                1 => 2160,
-                2 => 1440,
-                3 => 1080,
-                4 => 720,
-                5 => 480,
-                6 => 360,
-                _ => 0
-            };
+            MessageBox.Show(message, GetText("Error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
-
-        private string GetQualityArgument()
+        private void ShowWarning(string message)
         {
-            if (!isVideoMode)
-            {
-                return "--extract-audio --audio-format mp3 --audio-quality 0";
-            }
-            
-            // Kalite seçimi: Önce tam istenen kaliteyi dene, yoksa en yakınını al
-            // Format: bestvideo[height=X] = tam X yüksekliğinde en iyi video
-            // Fallback: bestvideo[height<=X] = X'e kadar olan en iyi
-            return qualityComboBox.SelectedIndex switch
-            {
-                0 => "--format \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best\"",
-                1 => "--format \"bestvideo[height=2160][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=2160]+bestaudio/bestvideo[height<=2160][ext=mp4]+bestaudio/best\"",
-                2 => "--format \"bestvideo[height=1440][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=1440]+bestaudio/bestvideo[height<=1440][ext=mp4]+bestaudio/best\"",
-                3 => "--format \"bestvideo[height=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=1080]+bestaudio/bestvideo[height<=1080][ext=mp4]+bestaudio/best\"",
-                4 => "--format \"bestvideo[height=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=720]+bestaudio/bestvideo[height<=720][ext=mp4]+bestaudio/best\"",
-                5 => "--format \"bestvideo[height=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=480]+bestaudio/bestvideo[height<=480][ext=mp4]+bestaudio/best\"",
-                6 => "--format \"bestvideo[height=360][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height=360]+bestaudio/bestvideo[height<=360][ext=mp4]+bestaudio/best\"",
-                _ => "--format \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best\""
-            };
-        }
-
-        private async Task CheckVideoResolution(string outputPath)
-        {
-            try
-            {
-                var files = Directory.GetFiles(outputPath, "*.*", SearchOption.TopDirectoryOnly)
-                    .Where(f => Path.GetExtension(f).ToLower() == ".mp4" ||
-                               Path.GetExtension(f).ToLower() == ".mkv" ||
-                               Path.GetExtension(f).ToLower() == ".webm" ||
-                               Path.GetExtension(f).ToLower() == ".mp3")
-                    .OrderByDescending(f => new FileInfo(f).CreationTime)
-                    .Take(1);
-
-                foreach (var videoFile in files)
-                {
-                    var fileInfo = new FileInfo(videoFile);
-                    var fileSizeMB = fileInfo.Length / (1024.0 * 1024.0);
-                    var fileName = Path.GetFileName(videoFile);
-
-                    // FFprobe ile gerçek çözünürlüğü kontrol et
-                    string actualResolution = await GetVideoResolution(videoFile);
-                    
-                    if (!string.IsNullOrEmpty(actualResolution))
-                    {
-                        var selectedQuality = GetSelectedQuality();
-                        statusLabel.Text = $"✅ Video indirildi: {actualResolution} ({fileSizeMB:F1} MB)";
-                        LogMessage($"İndirilen video: {fileName}", Color.LimeGreen);
-                        LogMessage($"Seçilen kalite: {selectedQuality}", Color.Cyan);
-                        LogMessage($"Gerçek çözünürlük: {actualResolution}", Color.Cyan);
-                        LogMessage($"Dosya boyutu: {fileSizeMB:F1} MB", Color.Cyan);
-                    }
-                    else
-                    {
-                        // FFprobe yoksa dosya boyutuna göre tahmin et
-                        if (fileSizeMB > 50)
-                        {
-                            statusLabel.Text = $"✅ Yüksek kalite video indirildi ({fileSizeMB:F1} MB)";
-                        }
-                        else if (fileSizeMB > 10)
-                        {
-                            statusLabel.Text = $"📊 Orta kalite video indirildi ({fileSizeMB:F1} MB)";
-                        }
-                        else
-                        {
-                            statusLabel.Text = $"⚠️ Düşük kalite veya ses dosyası ({fileSizeMB:F1} MB)";
-                        }
-                    }
-                    break;
-                }
-            }
-            catch { }
-        }
-
-        private async Task<string> GetVideoResolution(string videoPath)
-        {
-            try
-            {
-                // FFprobe kullanarak video çözünürlüğünü al
-                var processInfo = new ProcessStartInfo
-                {
-                    FileName = "ffprobe",
-                    Arguments = $"-v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 \"{videoPath}\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-
-                using var process = new Process { StartInfo = processInfo };
-                process.Start();
-                var output = await process.StandardOutput.ReadToEndAsync();
-                await Task.Run(() => process.WaitForExit());
-
-                if (process.ExitCode == 0 && !string.IsNullOrEmpty(output))
-                {
-                    var resolution = output.Trim();
-                    // Örnek output: "1920x1080"
-                    if (resolution.Contains("x"))
-                    {
-                        var parts = resolution.Split('x');
-                        if (parts.Length == 2 && int.TryParse(parts[1], out int height))
-                        {
-                            return $"{resolution} ({height}p)";
-                        }
-                        return resolution;
-                    }
-                }
-            }
-            catch
-            {
-                // FFprobe yoksa veya hata varsa boş string dön
-            }
-            return "";
+            var title = currentLanguage == AppLanguage.Turkish ? "Uyarı" : "Warning";
+            MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (downloadButton.Enabled == false)
+            if (!downloadButton.Enabled)
             {
                 var message = currentLanguage == AppLanguage.Turkish ?
                     "İndirme işlemi devam ediyor. Çıkmak istediğinizden emin misiniz?" :
                     "Download is in progress. Are you sure you want to exit?";
-                var title = currentLanguage == AppLanguage.Turkish ?
-                    "Çıkış Onayı" : "Exit Confirmation";
+                var title = currentLanguage == AppLanguage.Turkish ? "Çıkış Onayı" : "Exit Confirmation";
 
-                var result = MessageBox.Show(message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-                if (result == DialogResult.No)
+                if (MessageBox.Show(message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
                 {
                     e.Cancel = true;
                 }
@@ -1995,137 +1851,84 @@ Technologies:
             }
             catch { }
 
-            await CheckCriticalDependencies();
+            statusLabel.Text = GetText("Ready");
 
-            statusLabel.Text = GetText("Ready") + " - " + GetText("DevelopedBy");
-            LogMessage("Video Downloader v1.3.2 başlatıldı", Color.LimeGreen);
+            // Başlangıçta yt-dlp kontrol et ve eksikse otomatik kur
+            await CheckAndInstallDependenciesOnStartup();
         }
 
-        private async Task CheckCriticalDependencies()
+        private async Task CheckAndInstallDependenciesOnStartup()
         {
-            var criticalIssues = new List<string>();
+            try
+            {
+                statusLabel.Text = GetText("CheckingDependencies");
 
-            LogMessage("Sistem gereksinimleri kontrol ediliyor...", Color.Yellow);
-
-            var osVersion = Environment.OSVersion.Version;
-            if (osVersion.Major < 10)
-            {
-                criticalIssues.Add("Windows 10 veya üzeri gerekli");
-                LogMessage("❌ Desteklenmeyen Windows sürümü", Color.Red);
-            }
-
-            if (!await CheckPythonInstalled())
-            {
-                criticalIssues.Add("Python kurulu değil");
-                LogMessage("⚠️ Python bulunamadı - '🔄 yt-dlp Güncelle' butonunu kullanın", Color.Orange);
-            }
-            else
-            {
-                LogMessage("✅ Python kurulu", Color.LimeGreen);
-            }
-
-            if (!await CheckYtDlpInstalled())
-            {
-                criticalIssues.Add("yt-dlp kurulu değil");
-                LogMessage("⚠️ yt-dlp bulunamadı - '🔄 yt-dlp Güncelle' butonunu kullanın", Color.Orange);
-            }
-            else
-            {
-                LogMessage("✅ yt-dlp kurulu", Color.LimeGreen);
-            }
-
-            if (!await CheckFFmpegInstalled())
-            {
-                LogMessage("⚠️ FFmpeg bulunamadı - ses/video birleştirme sınırlı olabilir", Color.Orange);
-            }
-            else
-            {
-                LogMessage("✅ FFmpeg kurulu", Color.LimeGreen);
-            }
-
-            if (criticalIssues.Count > 0)
-            {
-                var criticalMessage = "⚠️ Program çalışması için gerekli bileşenler eksik:\n\n" +
-                                    $"❌ {string.Join("\n❌ ", criticalIssues)}\n\n" +
-                                    "Bu sorunları çözmek için '🔄 yt-dlp Güncelle' butonuna tıklayın.\n\n" +
-                                    "Bu butona tıklamadan program sınırlı çalışacaktır.";
-
-                MessageBox.Show(criticalMessage, "Sistem Gereksinimleri",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-
-                statusLabel.Text = "⚠️ Gereksinimler eksik - Güncelle butonunu kullanın";
-                LogMessage("⚠️ Kritik bağımlılıklar eksik - kullanıcı bilgilendirildi", Color.Orange);
-            }
-            else
-            {
-                LogMessage("✅ Tüm sistem gereksinimleri karşılandı", Color.LimeGreen);
-            }
-        }
-
-        private bool IsDebugMessage(string message)
-        {
-            if (string.IsNullOrEmpty(message)) return true;
-            
-            var debugKeywords = new[]
-            {
-                "[debug]",
-                "[Debug]",
-                "DEBUG:",
-                "debug:",
-                "[urllib3.connectionpool]",
-                "[requests.packages.urllib3]",
-                "Starting new HTTPS connection",
-                "Starting new HTTP connection", 
-                "Resetting dropped connection:",
-                "Connection pool is full",
-                "certificate verify failed",
-                "InsecurePlatformWarning",
-                "SNIMissingWarning",
-                "InsecureRequestWarning",
-                "urllib3.disable_warnings",
-                "requests.packages.urllib3.disable_warnings",
-                "Traceback (most recent call last):",
-                "File \"<frozen",
-                "line ",
-                "    ",
-                "\t",
-                "WARNING: ",
-                "UserWarning:",
-                "DeprecationWarning:",
-                "FutureWarning:",
-                "ResourceWarning:",
-                "[core/audio_conversion]",
-                "[core/video_conversion]", 
-                "[ffmpeg/audio]",
-                "[ffmpeg/video]",
-                "[generic]",
-                "[extractor]",
-                "[cookies]",
-                "[downloader]",
-                "[postprocessor]",
-                "Selected format:",
-                "Requested format:",
-                "Available formats:",
-                "format code",
-                "extension",
-                "resolution",
-                "note"
-            };
-
-            foreach (var keyword in debugKeywords)
-            {
-                if (message.Contains(keyword))
+                // Python kontrolü
+                var pythonOk = await CheckPythonInstalled();
+                if (!pythonOk)
                 {
-                    return true;
+                    statusLabel.Text = GetText("PythonNotFound");
+                    return;
+                }
+
+                // yt-dlp kontrolü
+                var ytdlpOk = await CheckYtDlpInstalled();
+                if (!ytdlpOk)
+                {
+                    statusLabel.Text = GetText("InstallingYtDlp");
+                    
+                    var installed = await InstallYtDlp();
+                    if (installed)
+                    {
+                        statusLabel.Text = GetText("YtDlpInstalled");
+                        await Task.Delay(2000);
+                        statusLabel.Text = GetText("Ready");
+                    }
+                    else
+                    {
+                        statusLabel.Text = GetText("YtDlpInstallFailed");
+                    }
+                }
+                else
+                {
+                    statusLabel.Text = GetText("Ready");
                 }
             }
-
-            if (message.Trim().Length < 5)
+            catch
             {
-                return true;
+                statusLabel.Text = GetText("Ready");
             }
+        }
 
-            return false;
+        private void MainForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Ctrl+F = Focus URL TextBox
+            if (e.Control && e.KeyCode == Keys.F)
+            {
+                urlTextBox.Focus();
+                urlTextBox.SelectAll();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            // Ctrl+V = Yapıştır
+            else if (e.Control && e.KeyCode == Keys.V)
+            {
+                PasteButton_Click(sender, e);
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            // Enter = İndir
+            else if (e.KeyCode == Keys.Enter && downloadButton.Enabled)
+            {
+                DownloadButton_Click(sender, e);
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        private void videoChannelLabel_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }

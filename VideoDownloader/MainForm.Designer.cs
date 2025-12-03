@@ -19,349 +19,407 @@ namespace VideoDownloader
         {
             urlLabel = new Label();
             urlTextBox = new TextBox();
-            mediaTypeLabel = new Label();
-            videoRadioButton = new RadioButton();
-            audioRadioButton = new RadioButton();
+            pasteButton = new RoundedButton();
+            videoFormatButton = new RoundedButton();
+            audioFormatButton = new RoundedButton();
+            previewPanel = new Panel();
+            thumbnailPictureBox = new PictureBox();
+            videoTitleLabel = new Label();
+            videoChannelLabel = new Label();
+            videoDurationLabel = new Label();
+            previewLoadingLabel = new Label();
             qualityLabel = new Label();
             qualityComboBox = new ComboBox();
             subtitleCheckBox = new CheckBox();
             pathLabel = new Label();
             pathTextBox = new TextBox();
-            browseButton = new Button();
-            downloadButton = new Button();
-            updateButton = new Button();
+            browseButton = new RoundedButton();
+            downloadButton = new RoundedButton();
+            progressPanel = new Panel();
             progressBar = new ProgressBar();
-            statusLabel = new Label();
-            progressGroupBox = new GroupBox();
-            timeRemainingLabel = new Label();
+            progressLabel = new Label();
             speedLabel = new Label();
-            currentFileLabel = new Label();
-            progressPercentageLabel = new Label();
-            progressStatusLabel = new Label();
-            pauseResumeButton = new Button();
-            cancelButton = new Button();
-            logTextBox = new RichTextBox();
-            progressGroupBox.SuspendLayout();
+            cancelButton = new RoundedButton();
+            statusLabel = new Label();
+            signatureLabel = new Label();
+            previewPanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)thumbnailPictureBox).BeginInit();
+            progressPanel.SuspendLayout();
             SuspendLayout();
-
+            // 
+            // urlLabel
+            // 
             urlLabel.AutoSize = true;
-            urlLabel.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            urlLabel.ForeColor = Color.FromArgb(45, 45, 45);
-            urlLabel.Location = new Point(25, 33);
+            urlLabel.Font = new Font("Segoe UI Semibold", 11F, FontStyle.Bold);
+            urlLabel.ForeColor = Color.FromArgb(250, 250, 250);
+            urlLabel.Location = new Point(30, 30);
             urlLabel.Name = "urlLabel";
-            urlLabel.Size = new Size(98, 23);
+            urlLabel.Size = new Size(100, 25);
             urlLabel.TabIndex = 0;
-            urlLabel.Text = "Video URL:";
-
-            urlTextBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            urlLabel.Text = "Video URL";
+            // 
+            // urlTextBox
+            // 
+            urlTextBox.BackColor = Color.FromArgb(39, 39, 42);
             urlTextBox.BorderStyle = BorderStyle.FixedSingle;
-            urlTextBox.Font = new Font("Segoe UI", 10F);
-            urlTextBox.Location = new Point(25, 60);
-            urlTextBox.Margin = new Padding(3, 4, 3, 4);
+            urlTextBox.Font = new Font("Segoe UI", 11F);
+            urlTextBox.ForeColor = Color.FromArgb(244, 244, 245);
+            urlTextBox.Location = new Point(30, 60);
             urlTextBox.Name = "urlTextBox";
-            urlTextBox.PlaceholderText = "YouTube, Twitter, Instagram veya diğer platform linklerini buraya yapıştırın...";
-            urlTextBox.Size = new Size(845, 30);
-            urlTextBox.TabIndex = 1;
-
-            mediaTypeLabel.AutoSize = true;
-            mediaTypeLabel.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            mediaTypeLabel.ForeColor = Color.FromArgb(45, 45, 45);
-            mediaTypeLabel.Location = new Point(25, 105);
-            mediaTypeLabel.Name = "mediaTypeLabel";
-            mediaTypeLabel.Size = new Size(110, 23);
-            mediaTypeLabel.TabIndex = 2;
-            mediaTypeLabel.Text = "Medya Türü:";
-
-            videoRadioButton.AutoSize = true;
-            videoRadioButton.Checked = true;
-            videoRadioButton.Font = new Font("Segoe UI", 10F);
-            videoRadioButton.ForeColor = Color.FromArgb(45, 45, 45);
-            videoRadioButton.Location = new Point(25, 135);
-            videoRadioButton.Name = "videoRadioButton";
-            videoRadioButton.Size = new Size(103, 27);
-            videoRadioButton.TabIndex = 3;
-            videoRadioButton.TabStop = true;
-            videoRadioButton.Text = "🎬 Video";
-            videoRadioButton.UseVisualStyleBackColor = true;
-            videoRadioButton.CheckedChanged += VideoRadioButton_CheckedChanged;
-
-            audioRadioButton.AutoSize = true;
-            audioRadioButton.Font = new Font("Segoe UI", 10F);
-            audioRadioButton.ForeColor = Color.FromArgb(45, 45, 45);
-            audioRadioButton.Location = new Point(140, 135);
-            audioRadioButton.Name = "audioRadioButton";
-            audioRadioButton.Size = new Size(84, 27);
-            audioRadioButton.TabIndex = 4;
-            audioRadioButton.Text = "🎵 Ses";
-            audioRadioButton.UseVisualStyleBackColor = true;
-            audioRadioButton.CheckedChanged += AudioRadioButton_CheckedChanged;
-
+            urlTextBox.PlaceholderText = "📋 Buraya yapıştır";
+            urlTextBox.Size = new Size(380, 32);
+            urlTextBox.TabIndex = 0;
+            urlTextBox.TextChanged += UrlTextBox_TextChanged;
+            // 
+            // pasteButton
+            // 
+            pasteButton.BackColor = Color.FromArgb(99, 102, 241);
+            pasteButton.BorderRadius = 6;
+            pasteButton.FlatStyle = FlatStyle.Flat;
+            pasteButton.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
+            pasteButton.ForeColor = Color.White;
+            pasteButton.Location = new Point(420, 58);
+            pasteButton.Name = "pasteButton";
+            pasteButton.Size = new Size(105, 36);
+            pasteButton.TabIndex = 1;
+            pasteButton.Text = "📋 Yapıştır";
+            pasteButton.UseVisualStyleBackColor = false;
+            pasteButton.Click += PasteButton_Click;
+            // 
+            // videoFormatButton
+            // 
+            videoFormatButton.BackColor = Color.FromArgb(99, 102, 241);
+            videoFormatButton.BorderRadius = 6;
+            videoFormatButton.FlatStyle = FlatStyle.Flat;
+            videoFormatButton.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
+            videoFormatButton.ForeColor = Color.White;
+            videoFormatButton.Location = new Point(535, 58);
+            videoFormatButton.Name = "videoFormatButton";
+            videoFormatButton.Size = new Size(100, 36);
+            videoFormatButton.TabIndex = 2;
+            videoFormatButton.Text = "🎬 Video";
+            videoFormatButton.UseVisualStyleBackColor = false;
+            videoFormatButton.Click += VideoFormatButton_Click;
+            // 
+            // audioFormatButton
+            // 
+            audioFormatButton.BackColor = Color.FromArgb(39, 39, 42);
+            audioFormatButton.BorderRadius = 6;
+            audioFormatButton.FlatStyle = FlatStyle.Flat;
+            audioFormatButton.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
+            audioFormatButton.ForeColor = Color.FromArgb(212, 212, 216);
+            audioFormatButton.Location = new Point(645, 58);
+            audioFormatButton.Name = "audioFormatButton";
+            audioFormatButton.Size = new Size(95, 36);
+            audioFormatButton.TabIndex = 3;
+            audioFormatButton.Text = "🎵 Ses";
+            audioFormatButton.UseVisualStyleBackColor = false;
+            audioFormatButton.Click += AudioFormatButton_Click;
+            // 
+            // previewPanel
+            // 
+            previewPanel.BackColor = Color.FromArgb(39, 39, 42);
+            previewPanel.Controls.Add(thumbnailPictureBox);
+            previewPanel.Controls.Add(videoTitleLabel);
+            previewPanel.Controls.Add(videoChannelLabel);
+            previewPanel.Controls.Add(videoDurationLabel);
+            previewPanel.Controls.Add(previewLoadingLabel);
+            previewPanel.Location = new Point(30, 110);
+            previewPanel.Name = "previewPanel";
+            previewPanel.Size = new Size(710, 105);
+            previewPanel.TabIndex = 4;
+            previewPanel.Visible = false;
+            // 
+            // thumbnailPictureBox
+            // 
+            thumbnailPictureBox.BackColor = Color.FromArgb(24, 24, 27);
+            thumbnailPictureBox.BorderStyle = BorderStyle.FixedSingle;
+            thumbnailPictureBox.Location = new Point(10, 10);
+            thumbnailPictureBox.Name = "thumbnailPictureBox";
+            thumbnailPictureBox.Size = new Size(140, 85);
+            thumbnailPictureBox.SizeMode = PictureBoxSizeMode.Zoom;
+            thumbnailPictureBox.TabIndex = 0;
+            thumbnailPictureBox.TabStop = false;
+            // 
+            // videoTitleLabel
+            // 
+            videoTitleLabel.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
+            videoTitleLabel.ForeColor = Color.FromArgb(250, 250, 250);
+            videoTitleLabel.Location = new Point(160, 8);
+            videoTitleLabel.Name = "videoTitleLabel";
+            videoTitleLabel.Size = new Size(540, 50);
+            videoTitleLabel.TabIndex = 1;
+            videoTitleLabel.MaximumSize = new Size(540, 50);
+            videoTitleLabel.AutoEllipsis = true;
+            // 
+            // videoChannelLabel
+            // 
+            videoChannelLabel.Font = new Font("Segoe UI", 9F);
+            videoChannelLabel.ForeColor = Color.FromArgb(212, 212, 216);
+            videoChannelLabel.Location = new Point(160, 60);
+            videoChannelLabel.Name = "videoChannelLabel";
+            videoChannelLabel.Size = new Size(350, 20);
+            videoChannelLabel.TabIndex = 2;
+            videoChannelLabel.AutoEllipsis = true;
+            videoChannelLabel.Click += videoChannelLabel_Click;
+            // 
+            // videoDurationLabel
+            // 
+            videoDurationLabel.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
+            videoDurationLabel.ForeColor = Color.FromArgb(99, 102, 241);
+            videoDurationLabel.Location = new Point(160, 82);
+            videoDurationLabel.Name = "videoDurationLabel";
+            videoDurationLabel.Size = new Size(150, 20);
+            videoDurationLabel.TabIndex = 3;
+            // 
+            // previewLoadingLabel
+            // 
+            previewLoadingLabel.Font = new Font("Segoe UI", 10F);
+            previewLoadingLabel.ForeColor = Color.FromArgb(212, 212, 216);
+            previewLoadingLabel.Location = new Point(10, 40);
+            previewLoadingLabel.Name = "previewLoadingLabel";
+            previewLoadingLabel.Size = new Size(690, 25);
+            previewLoadingLabel.TabIndex = 4;
+            previewLoadingLabel.Text = "Video bilgileri yükleniy or...";
+            previewLoadingLabel.TextAlign = ContentAlignment.MiddleCenter;
+            previewLoadingLabel.Visible = false;
+            // 
+            // qualityLabel
+            // 
             qualityLabel.AutoSize = true;
-            qualityLabel.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            qualityLabel.ForeColor = Color.FromArgb(45, 45, 45);
-            qualityLabel.Location = new Point(250, 105);
+            qualityLabel.Font = new Font("Segoe UI Semibold", 11F, FontStyle.Bold);
+            qualityLabel.ForeColor = Color.FromArgb(250, 250, 250);
+            qualityLabel.Location = new Point(30, 145);
             qualityLabel.Name = "qualityLabel";
-            qualityLabel.Size = new Size(61, 23);
+            qualityLabel.Size = new Size(61, 25);
             qualityLabel.TabIndex = 5;
-            qualityLabel.Text = "Kalite:";
-
+            qualityLabel.Text = "Kalite";
+            // 
+            // qualityComboBox
+            // 
+            qualityComboBox.BackColor = Color.FromArgb(39, 39, 42);
             qualityComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
             qualityComboBox.FlatStyle = FlatStyle.Flat;
-            qualityComboBox.Font = new Font("Segoe UI", 10F);
-            qualityComboBox.FormattingEnabled = true;
-            qualityComboBox.Items.AddRange(new object[] { "En İyi", "2160p", "1440p", "1080p", "720p", "480p", "360p" });
-            qualityComboBox.Location = new Point(250, 135);
-            qualityComboBox.Margin = new Padding(3, 4, 3, 4);
+            qualityComboBox.Font = new Font("Segoe UI", 11F);
+            qualityComboBox.ForeColor = Color.FromArgb(34, 197, 94);
+            qualityComboBox.Items.AddRange(new object[] { "En İyi Kalite", "4K (2160p)", "2K (1440p)", "1080p", "720p", "480p", "360p" });
+            qualityComboBox.Location = new Point(30, 175);
             qualityComboBox.Name = "qualityComboBox";
-            qualityComboBox.Size = new Size(180, 31);
-            qualityComboBox.TabIndex = 6;
-            qualityComboBox.SelectedIndex = 0; 
-
+            qualityComboBox.Size = new Size(250, 33);
+            qualityComboBox.TabIndex = 5;
+            // 
+            // subtitleCheckBox
+            // 
             subtitleCheckBox.AutoSize = true;
             subtitleCheckBox.Font = new Font("Segoe UI", 10F);
-            subtitleCheckBox.ForeColor = Color.FromArgb(45, 45, 45);
-            subtitleCheckBox.Location = new Point(450, 140);
-            subtitleCheckBox.Margin = new Padding(3, 4, 3, 4);
+            subtitleCheckBox.ForeColor = Color.FromArgb(250, 250, 250);
+            subtitleCheckBox.Location = new Point(300, 182);
             subtitleCheckBox.Name = "subtitleCheckBox";
             subtitleCheckBox.Size = new Size(122, 27);
-            subtitleCheckBox.TabIndex = 7;
+            subtitleCheckBox.TabIndex = 6;
             subtitleCheckBox.Text = "Altyazı İndir";
             subtitleCheckBox.UseVisualStyleBackColor = true;
-
+            // 
+            // pathLabel
+            // 
             pathLabel.AutoSize = true;
-            pathLabel.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            pathLabel.ForeColor = Color.FromArgb(45, 45, 45);
-            pathLabel.Location = new Point(25, 185);
+            pathLabel.Font = new Font("Segoe UI Semibold", 11F, FontStyle.Bold);
+            pathLabel.ForeColor = Color.FromArgb(250, 250, 250);
+            pathLabel.Location = new Point(30, 230);
             pathLabel.Name = "pathLabel";
-            pathLabel.Size = new Size(116, 23);
-            pathLabel.TabIndex = 10;
-            pathLabel.Text = "İndirme Yolu:";
-
-            pathTextBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            pathLabel.Size = new Size(148, 25);
+            pathLabel.TabIndex = 7;
+            pathLabel.Text = "İndirme Klasörü";
+            // 
+            // pathTextBox
+            // 
+            pathTextBox.BackColor = Color.FromArgb(39, 39, 42);
             pathTextBox.BorderStyle = BorderStyle.FixedSingle;
             pathTextBox.Font = new Font("Segoe UI", 10F);
-            pathTextBox.Location = new Point(25, 215);
-            pathTextBox.Margin = new Padding(3, 4, 3, 4);
+            pathTextBox.ForeColor = Color.FromArgb(244, 244, 245);
+            pathTextBox.Location = new Point(30, 260);
             pathTextBox.Name = "pathTextBox";
-            pathTextBox.Size = new Size(685, 30);
-            pathTextBox.TabIndex = 11;
-
-            browseButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            browseButton.BackColor = Color.FromArgb(108, 117, 125);
-            browseButton.FlatAppearance.BorderSize = 0;
+            pathTextBox.ReadOnly = true;
+            pathTextBox.Size = new Size(585, 30);
+            pathTextBox.TabIndex = 7;
+            // 
+            // browseButton
+            // 
+            browseButton.BackColor = Color.FromArgb(39, 39, 42);
+            browseButton.BorderRadius = 6;
             browseButton.FlatStyle = FlatStyle.Flat;
-            browseButton.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            browseButton.ForeColor = Color.White;
-            browseButton.Location = new Point(730, 215);
-            browseButton.Margin = new Padding(3, 4, 3, 4);
+            browseButton.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
+            browseButton.ForeColor = Color.FromArgb(250, 250, 250);
+            browseButton.Location = new Point(625, 258);
             browseButton.Name = "browseButton";
-            browseButton.Size = new Size(140, 35);
-            browseButton.TabIndex = 12;
+            browseButton.Size = new Size(115, 34);
+            browseButton.TabIndex = 8;
             browseButton.Text = "📁 Gözat";
             browseButton.UseVisualStyleBackColor = false;
             browseButton.Click += BrowseButton_Click;
-
-            downloadButton.BackColor = Color.FromArgb(40, 167, 69);
-            downloadButton.FlatAppearance.BorderSize = 0;
+            // 
+            // downloadButton
+            // 
+            downloadButton.BackColor = Color.FromArgb(34, 197, 94);
+            downloadButton.BorderRadius = 12;
             downloadButton.FlatStyle = FlatStyle.Flat;
-            downloadButton.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            downloadButton.Font = new Font("Segoe UI Semibold", 14F, FontStyle.Bold);
             downloadButton.ForeColor = Color.White;
-            downloadButton.Location = new Point(25, 275);
-            downloadButton.Margin = new Padding(3, 4, 3, 4);
+            downloadButton.Location = new Point(30, 320);
             downloadButton.Name = "downloadButton";
-            downloadButton.Size = new Size(190, 55);
-            downloadButton.TabIndex = 13;
-            downloadButton.Text = "🎬 İndir";
+            downloadButton.Size = new Size(710, 55);
+            downloadButton.TabIndex = 9;
+            downloadButton.Text = "↓ İndir";
             downloadButton.UseVisualStyleBackColor = false;
             downloadButton.Click += DownloadButton_Click;
-
-            updateButton.BackColor = Color.FromArgb(0, 123, 255);
-            updateButton.FlatAppearance.BorderSize = 0;
-            updateButton.FlatStyle = FlatStyle.Flat;
-            updateButton.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            updateButton.ForeColor = Color.White;
-            updateButton.Location = new Point(230, 275);
-            updateButton.Margin = new Padding(3, 4, 3, 4);
-            updateButton.Name = "updateButton";
-            updateButton.Size = new Size(170, 55);
-            updateButton.TabIndex = 14;
-            updateButton.Text = "🔧 Sistem Kontrolü";
-            updateButton.UseVisualStyleBackColor = false;
-            updateButton.Click += UpdateButton_Click;
-
-            progressBar.Location = new Point(20, 35);
-            progressBar.Margin = new Padding(3, 4, 3, 4);
+            // 
+            // progressPanel
+            // 
+            progressPanel.BackColor = Color.FromArgb(39, 39, 42);
+            progressPanel.Controls.Add(progressBar);
+            progressPanel.Controls.Add(progressLabel);
+            progressPanel.Controls.Add(speedLabel);
+            progressPanel.Controls.Add(cancelButton);
+            progressPanel.Location = new Point(30, 390);
+            progressPanel.Name = "progressPanel";
+            progressPanel.Size = new Size(710, 70);
+            progressPanel.TabIndex = 10;
+            progressPanel.Visible = false;
+            // 
+            // progressBar
+            // 
+            progressBar.Location = new Point(15, 15);
             progressBar.Name = "progressBar";
-            progressBar.Size = new Size(804, 28);
+            progressBar.Size = new Size(600, 20);
             progressBar.Style = ProgressBarStyle.Continuous;
-            progressBar.TabIndex = 11;
-
-            statusLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            statusLabel.Font = new Font("Segoe UI", 10F, FontStyle.Italic);
-            statusLabel.ForeColor = Color.FromArgb(108, 117, 125);
-            statusLabel.Location = new Point(25, 350);
-            statusLabel.Name = "statusLabel";
-            statusLabel.Size = new Size(846, 25);
-            statusLabel.TabIndex = 12;
-            statusLabel.Text = "Hazır";
-            statusLabel.TextAlign = ContentAlignment.MiddleCenter;
-
-            progressGroupBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            progressGroupBox.Controls.Add(cancelButton);
-            progressGroupBox.Controls.Add(pauseResumeButton);
-            progressGroupBox.Controls.Add(timeRemainingLabel);
-            progressGroupBox.Controls.Add(speedLabel);
-            progressGroupBox.Controls.Add(currentFileLabel);
-            progressGroupBox.Controls.Add(progressPercentageLabel);
-            progressGroupBox.Controls.Add(progressStatusLabel);
-            progressGroupBox.Controls.Add(progressBar);
-            progressGroupBox.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            progressGroupBox.ForeColor = Color.FromArgb(45, 45, 45);
-            progressGroupBox.Location = new Point(25, 385);
-            progressGroupBox.Name = "progressGroupBox";
-            progressGroupBox.Size = new Size(845, 145);
-            progressGroupBox.TabIndex = 13;
-            progressGroupBox.TabStop = false;
-            progressGroupBox.Text = "📊 İndirme Durumu";
-            progressGroupBox.Visible = false;
-
-            timeRemainingLabel.Font = new Font("Segoe UI", 9F);
-            timeRemainingLabel.ForeColor = Color.FromArgb(0, 123, 255);
-            timeRemainingLabel.Location = new Point(240, 115);
-            timeRemainingLabel.Name = "timeRemainingLabel";
-            timeRemainingLabel.Size = new Size(200, 20);
-            timeRemainingLabel.TabIndex = 18;
-
+            progressBar.TabIndex = 0;
+            // 
+            // progressLabel
+            // 
+            progressLabel.Font = new Font("Segoe UI Semibold", 11F, FontStyle.Bold);
+            progressLabel.ForeColor = Color.FromArgb(99, 102, 241);
+            progressLabel.Location = new Point(625, 12);
+            progressLabel.Name = "progressLabel";
+            progressLabel.Size = new Size(70, 25);
+            progressLabel.TabIndex = 1;
+            progressLabel.Text = "0%";
+            progressLabel.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // speedLabel
+            // 
             speedLabel.Font = new Font("Segoe UI", 9F);
-            speedLabel.ForeColor = Color.FromArgb(40, 167, 69);
-            speedLabel.Location = new Point(20, 115);
+            speedLabel.ForeColor = Color.FromArgb(212, 212, 216);
+            speedLabel.Location = new Point(15, 42);
             speedLabel.Name = "speedLabel";
-            speedLabel.Size = new Size(200, 20);
-            speedLabel.TabIndex = 17;
-
-            currentFileLabel.Font = new Font("Segoe UI", 9F);
-            currentFileLabel.ForeColor = Color.FromArgb(108, 117, 125);
-            currentFileLabel.Location = new Point(20, 90);
-            currentFileLabel.Name = "currentFileLabel";
-            currentFileLabel.Size = new Size(804, 20);
-            currentFileLabel.TabIndex = 16;
-
-            progressPercentageLabel.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            progressPercentageLabel.ForeColor = Color.FromArgb(45, 45, 45);
-            progressPercentageLabel.Location = new Point(640, 70);
-            progressPercentageLabel.Name = "progressPercentageLabel";
-            progressPercentageLabel.Size = new Size(80, 20);
-            progressPercentageLabel.TabIndex = 15;
-            progressPercentageLabel.Text = "0%";
-            progressPercentageLabel.TextAlign = ContentAlignment.MiddleRight;
-
-            progressStatusLabel.Font = new Font("Segoe UI", 10F);
-            progressStatusLabel.ForeColor = Color.FromArgb(45, 45, 45);
-            progressStatusLabel.Location = new Point(20, 70);
-            progressStatusLabel.Name = "progressStatusLabel";
-            progressStatusLabel.Size = new Size(600, 20);
-            progressStatusLabel.TabIndex = 14;
-            progressStatusLabel.Text = "Hazırlanıyor...";
-
-            pauseResumeButton.BackColor = Color.FromArgb(255, 193, 7);
-            pauseResumeButton.FlatAppearance.BorderSize = 0;
-            pauseResumeButton.FlatStyle = FlatStyle.Flat;
-            pauseResumeButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            pauseResumeButton.ForeColor = Color.White;
-            pauseResumeButton.Location = new Point(650, 115);
-            pauseResumeButton.Name = "pauseResumeButton";
-            pauseResumeButton.Size = new Size(80, 25);
-            pauseResumeButton.TabIndex = 19;
-            pauseResumeButton.Text = "⏸️ Duraklat";
-            pauseResumeButton.UseVisualStyleBackColor = false;
-            pauseResumeButton.Click += PauseResumeButton_Click;
-
-            cancelButton.BackColor = Color.FromArgb(220, 53, 69);
-            cancelButton.FlatAppearance.BorderSize = 0;
+            speedLabel.Size = new Size(500, 20);
+            speedLabel.TabIndex = 2;
+            speedLabel.Text = "İndiriliyor...";
+            // 
+            // cancelButton
+            // 
+            cancelButton.BackColor = Color.FromArgb(239, 68, 68);
+            cancelButton.BorderRadius = 8;
             cancelButton.FlatStyle = FlatStyle.Flat;
-            cancelButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            cancelButton.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
             cancelButton.ForeColor = Color.White;
-            cancelButton.Location = new Point(740, 115);
+            cancelButton.Location = new Point(620, 38);
             cancelButton.Name = "cancelButton";
-            cancelButton.Size = new Size(80, 25);
-            cancelButton.TabIndex = 20;
-            cancelButton.Text = "❌ İptal";
+            cancelButton.Size = new Size(75, 28);
+            cancelButton.TabIndex = 1;
+            cancelButton.Text = "İptal";
             cancelButton.UseVisualStyleBackColor = false;
             cancelButton.Click += CancelButton_Click;
-
-            logTextBox.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            logTextBox.BackColor = Color.FromArgb(33, 37, 41);
-            logTextBox.BorderStyle = BorderStyle.FixedSingle;
-            logTextBox.Font = new Font("Microsoft Sans Serif", 9F);
-            logTextBox.ForeColor = Color.FromArgb(40, 167, 69);
-            logTextBox.Location = new Point(25, 545);
-            logTextBox.Margin = new Padding(3, 4, 3, 4);
-            logTextBox.Name = "logTextBox";
-            logTextBox.ReadOnly = true;
-            logTextBox.Size = new Size(845, 155);
-            logTextBox.TabIndex = 14;
-            logTextBox.Text = "";
-
+            // 
+            // statusLabel
+            // 
+            statusLabel.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            statusLabel.Font = new Font("Segoe UI", 9F);
+            statusLabel.ForeColor = Color.FromArgb(212, 212, 216);
+            statusLabel.Location = new Point(30, 405);
+            statusLabel.Name = "statusLabel";
+            statusLabel.Size = new Size(300, 25);
+            statusLabel.TabIndex = 11;
+            statusLabel.Text = "Hazır";
+            statusLabel.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // signatureLabel
+            // 
+            signatureLabel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            signatureLabel.Font = new Font("Segoe UI", 8F, FontStyle.Italic);
+            signatureLabel.ForeColor = Color.FromArgb(113, 113, 122);
+            signatureLabel.Location = new Point(630, 405);
+            signatureLabel.Name = "signatureLabel";
+            signatureLabel.Size = new Size(110, 25);
+            signatureLabel.TabIndex = 12;
+            signatureLabel.Text = "kayapater";
+            signatureLabel.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // MainForm
+            // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            BackColor = Color.FromArgb(248, 249, 250);
-            ClientSize = new Size(894, 720);
-            Controls.Add(logTextBox);
-            Controls.Add(progressGroupBox);
-            Controls.Add(statusLabel);
-            Controls.Add(updateButton);
-            Controls.Add(downloadButton);
-            Controls.Add(browseButton);
-            Controls.Add(pathTextBox);
-            Controls.Add(pathLabel);
-            Controls.Add(subtitleCheckBox);
-            Controls.Add(qualityComboBox);
-            Controls.Add(qualityLabel);
-
-            Controls.Add(audioRadioButton);
-            Controls.Add(videoRadioButton);
-            Controls.Add(mediaTypeLabel);
-            Controls.Add(urlTextBox);
+            BackColor = Color.FromArgb(24, 24, 27);
+            ClientSize = new Size(770, 458);
             Controls.Add(urlLabel);
-            Margin = new Padding(3, 4, 3, 4);
-            MaximumSize = new Size(1200, 800);
-            MinimumSize = new Size(683, 720);
+            Controls.Add(urlTextBox);
+            Controls.Add(pasteButton);
+            Controls.Add(videoFormatButton);
+            Controls.Add(audioFormatButton);
+            Controls.Add(previewPanel);
+            Controls.Add(qualityLabel);
+            Controls.Add(qualityComboBox);
+            Controls.Add(subtitleCheckBox);
+            Controls.Add(pathLabel);
+            Controls.Add(pathTextBox);
+            Controls.Add(browseButton);
+            Controls.Add(downloadButton);
+            Controls.Add(progressPanel);
+            Controls.Add(signatureLabel);
+            Controls.Add(statusLabel);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            KeyPreview = true;
+            MaximizeBox = false;
+            MaximumSize = new Size(788, 505);
+            MinimumSize = new Size(788, 505);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "Video İndirici - YouTube, Twitter, Instagram";
+            Text = "Video İndirici";
             FormClosing += MainForm_FormClosing;
             Load += MainForm_Load;
-            progressGroupBox.ResumeLayout(false);
+            KeyDown += MainForm_KeyDown;
+            previewPanel.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)thumbnailPictureBox).EndInit();
+            progressPanel.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
         }
 
         #endregion
 
-        private System.Windows.Forms.Label urlLabel;
-        private System.Windows.Forms.TextBox urlTextBox;
-        private System.Windows.Forms.Label mediaTypeLabel;
-        private System.Windows.Forms.RadioButton videoRadioButton;
-        private System.Windows.Forms.RadioButton audioRadioButton;
-
-        private System.Windows.Forms.Label qualityLabel;
-        private System.Windows.Forms.ComboBox qualityComboBox;
-        private System.Windows.Forms.CheckBox subtitleCheckBox;
-        private System.Windows.Forms.Label pathLabel;
-        private System.Windows.Forms.TextBox pathTextBox;
-        private System.Windows.Forms.Button browseButton;
-        private System.Windows.Forms.Button downloadButton;
-        private System.Windows.Forms.Button updateButton;
-        private System.Windows.Forms.ProgressBar progressBar;
-        private System.Windows.Forms.Label statusLabel;
-        private System.Windows.Forms.GroupBox progressGroupBox;
-        private System.Windows.Forms.Label progressStatusLabel;
-        private System.Windows.Forms.Label progressPercentageLabel;
-        private System.Windows.Forms.Label currentFileLabel;
-        private System.Windows.Forms.Label speedLabel;
-        private System.Windows.Forms.Label timeRemainingLabel;
-        private System.Windows.Forms.Button pauseResumeButton;
-        private System.Windows.Forms.Button cancelButton;
-        private System.Windows.Forms.RichTextBox logTextBox;
+        private Label urlLabel;
+        private TextBox urlTextBox;
+        private RoundedButton pasteButton;
+        private RoundedButton videoFormatButton;
+        private RoundedButton audioFormatButton;
+        private Panel previewPanel;
+        private PictureBox thumbnailPictureBox;
+        private Label videoTitleLabel;
+        private Label videoDurationLabel;
+        private Label videoChannelLabel;
+        private Label previewLoadingLabel;
+        private Label qualityLabel;
+        private ComboBox qualityComboBox;
+        private CheckBox subtitleCheckBox;
+        private Label pathLabel;
+        private TextBox pathTextBox;
+        private RoundedButton browseButton;
+        private RoundedButton downloadButton;
+        private Panel progressPanel;
+        private ProgressBar progressBar;
+        private Label progressLabel;
+        private Label speedLabel;
+        private RoundedButton cancelButton;
+        private Label statusLabel;
+        private Label signatureLabel;
     }
 }

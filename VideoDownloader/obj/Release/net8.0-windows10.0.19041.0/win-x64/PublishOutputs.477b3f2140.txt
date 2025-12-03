@@ -1,0 +1,8 @@
+C:\Users\Vai\Proje\indirici\video-downloader-repo-v1.4.0\VideoDownloader\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\VideoDownloader.exe
+C:\Users\Vai\Proje\indirici\video-downloader-repo-v1.4.0\VideoDownloader\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\VideoDownloader.dll
+C:\Users\Vai\Proje\indirici\video-downloader-repo-v1.4.0\VideoDownloader\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\VideoDownloader.deps.json
+C:\Users\Vai\Proje\indirici\video-downloader-repo-v1.4.0\VideoDownloader\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\VideoDownloader.runtimeconfig.json
+C:\Users\Vai\Proje\indirici\video-downloader-repo-v1.4.0\VideoDownloader\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\VideoDownloader.pdb
+C:\Users\Vai\Proje\indirici\video-downloader-repo-v1.4.0\VideoDownloader\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\Microsoft.Windows.SDK.NET.dll
+C:\Users\Vai\Proje\indirici\video-downloader-repo-v1.4.0\VideoDownloader\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\WinRT.Runtime.dll
+C:\Users\Vai\Proje\indirici\video-downloader-repo-v1.4.0\VideoDownloader\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\Newtonsoft.Json.dll
