@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,6 +16,21 @@ namespace VideoDownloader
 {
     public partial class MainForm : Form
     {
+        // Windows API for process suspend/resume
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr OpenThread(uint dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
+        
+        [DllImport("kernel32.dll")]
+        private static extern uint SuspendThread(IntPtr hThread);
+        
+        [DllImport("kernel32.dll")]
+        private static extern uint ResumeThread(IntPtr hThread);
+        
+        [DllImport("kernel32.dll")]
+        private static extern bool CloseHandle(IntPtr hObject);
+        
+        private const uint THREAD_SUSPEND_RESUME = 0x0002;
+
         private Dictionary<string, Dictionary<AppLanguage, string>> translations;
         private AppLanguage currentLanguage = AppLanguage.Turkish;
         private AppTheme currentTheme = AppTheme.Dark;  // Varsayılan dark tema
@@ -39,7 +55,7 @@ namespace VideoDownloader
         private readonly Color darkBgColor = Color.FromArgb(24, 24, 27);         // Zinc-900 (daha koyu, kontrastlı)
 
         private enum AppLanguage { Turkish, English }
-        private enum AppTheme { Light, Dark }
+        private enum AppTheme { Light, Dark, Ocean, Forest, Sunset, Purple, Rose, Midnight }
 
         public MainForm()
         {
@@ -54,11 +70,10 @@ namespace VideoDownloader
 
         private void InitializeDefaultValues()
         {
-            // Default download path
+            // Default download path - Videolar/Video Downloader
             string defaultPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                "Downloads",
-                "VideoDownloader"
+                Environment.GetFolderPath(Environment.SpecialFolder.MyVideos),
+                "Video Downloader"
             );
             pathTextBox.Text = defaultPath;
 
@@ -131,16 +146,25 @@ namespace VideoDownloader
         {
             this.Text = GetText("FormTitle");
             urlLabel.Text = GetText("VideoURL");
-            pasteButton.Text = "📋";
+            pasteButton.Text = currentLanguage == AppLanguage.Turkish ? "📋 Yapıştır" : "📋 Paste";
             videoFormatButton.Text = GetText("VideoOption");
             audioFormatButton.Text = GetText("AudioOption");
             qualityLabel.Text = GetText("Quality");
             subtitleCheckBox.Text = GetText("DownloadSubtitles");
             pathLabel.Text = GetText("DownloadPath");
-            browseButton.Text = GetText("Browse");
+            browseButton.Text = currentLanguage == AppLanguage.Turkish ? "📁 Gözat" : "📁 Browse";
             downloadButton.Text = GetText("Download");
             cancelButton.Text = GetText("Cancel");
+            pauseButton.Text = isPaused ? GetText("Resume") : GetText("Pause");
             statusLabel.Text = GetText("Ready");
+            
+            // URL placeholder
+            urlTextBox.PlaceholderText = currentLanguage == AppLanguage.Turkish ? 
+                "📋 Buraya yapıştır" : "📋 Paste here";
+            
+            // Preview loading label
+            previewLoadingLabel.Text = currentLanguage == AppLanguage.Turkish ?
+                "Video bilgileri yükleniyor..." : "Loading video info...";
 
             // Update quality items
             var selectedIndex = qualityComboBox.SelectedIndex;
@@ -205,10 +229,17 @@ namespace VideoDownloader
                     if (themeMenu != null)
                     {
                         themeMenu.Text = GetText("Theme");
-                        if (themeMenu.DropDownItems.Count >= 2)
+                        if (themeMenu.DropDownItems.Count >= 9)
                         {
                             themeMenu.DropDownItems[0].Text = GetText("LightTheme");
                             themeMenu.DropDownItems[1].Text = GetText("DarkTheme");
+                            // Index 2 = Separator
+                            themeMenu.DropDownItems[3].Text = GetText("OceanTheme");
+                            themeMenu.DropDownItems[4].Text = GetText("ForestTheme");
+                            themeMenu.DropDownItems[5].Text = GetText("SunsetTheme");
+                            themeMenu.DropDownItems[6].Text = GetText("PurpleTheme");
+                            themeMenu.DropDownItems[7].Text = GetText("RoseTheme");
+                            themeMenu.DropDownItems[8].Text = GetText("MidnightTheme");
                         }
                     }
                 }
@@ -237,23 +268,80 @@ namespace VideoDownloader
         {
             Color backgroundColor, foregroundColor, inputBackColor, inputForeColor, panelColor;
 
-            if (currentTheme == AppTheme.Dark)
+            switch (currentTheme)
             {
-                // Dark Theme - Improved readability
-                backgroundColor = darkBgColor;                      // Zinc-900: #18181B
-                foregroundColor = Color.FromArgb(250, 250, 250);    // Zinc-50 (daha parlak)
-                inputBackColor = Color.FromArgb(39, 39, 42);        // Zinc-800 (daha açık input)
-                inputForeColor = Color.FromArgb(244, 244, 245);     // Zinc-100 (net okuma)
-                panelColor = Color.FromArgb(39, 39, 42);            // Zinc-800
-            }
-            else
-            {
-                // Light Theme - Improved contrast
-                backgroundColor = lightBgColor;                      // Gray-50: #F9FAFB
-                foregroundColor = Color.FromArgb(24, 24, 27);       // Zinc-900 (koyu metin)
-                inputBackColor = Color.White;                       // Beyaz input
-                inputForeColor = Color.FromArgb(24, 24, 27);        // Zinc-900 (net okuma)
-                panelColor = Color.White;                           // Beyaz panel
+                case AppTheme.Dark:
+                    // Dark Theme - Improved readability
+                    backgroundColor = darkBgColor;                      // Zinc-900: #18181B
+                    foregroundColor = Color.FromArgb(250, 250, 250);    // Zinc-50 (daha parlak)
+                    inputBackColor = Color.FromArgb(39, 39, 42);        // Zinc-800 (daha açık input)
+                    inputForeColor = Color.FromArgb(244, 244, 245);     // Zinc-100 (net okuma)
+                    panelColor = Color.FromArgb(39, 39, 42);            // Zinc-800
+                    break;
+
+                case AppTheme.Ocean:
+                    // Ocean Blue Theme - Mavi okyanus teması
+                    backgroundColor = Color.FromArgb(15, 23, 42);       // Slate-900
+                    foregroundColor = Color.FromArgb(224, 242, 254);    // Sky-100
+                    inputBackColor = Color.FromArgb(30, 58, 95);        // Koyu mavi
+                    inputForeColor = Color.FromArgb(186, 230, 253);     // Sky-200
+                    panelColor = Color.FromArgb(23, 37, 63);            // Slate-800 tonu
+                    break;
+
+                case AppTheme.Forest:
+                    // Forest Green Theme - Yeşil orman teması
+                    backgroundColor = Color.FromArgb(20, 30, 22);       // Koyu yeşil
+                    foregroundColor = Color.FromArgb(220, 252, 231);    // Emerald-100
+                    inputBackColor = Color.FromArgb(30, 50, 35);        // Orta yeşil
+                    inputForeColor = Color.FromArgb(187, 247, 208);     // Green-200
+                    panelColor = Color.FromArgb(28, 45, 32);            // Yeşil panel
+                    break;
+
+                case AppTheme.Sunset:
+                    // Sunset Orange Theme - Gün batımı turuncu teması
+                    backgroundColor = Color.FromArgb(35, 20, 15);       // Koyu turuncu-kahve
+                    foregroundColor = Color.FromArgb(255, 237, 213);    // Orange-100
+                    inputBackColor = Color.FromArgb(60, 35, 25);        // Turuncu-kahve
+                    inputForeColor = Color.FromArgb(254, 215, 170);     // Orange-200
+                    panelColor = Color.FromArgb(50, 30, 20);            // Turuncu panel
+                    break;
+
+                case AppTheme.Purple:
+                    // Purple Dreams Theme - Mor rüya teması
+                    backgroundColor = Color.FromArgb(25, 15, 40);       // Koyu mor
+                    foregroundColor = Color.FromArgb(243, 232, 255);    // Purple-100
+                    inputBackColor = Color.FromArgb(45, 30, 70);        // Orta mor
+                    inputForeColor = Color.FromArgb(233, 213, 255);     // Purple-200
+                    panelColor = Color.FromArgb(38, 25, 58);            // Mor panel
+                    break;
+
+                case AppTheme.Rose:
+                    // Rose Theme - Pembe gül teması
+                    backgroundColor = Color.FromArgb(35, 18, 25);       // Koyu pembe
+                    foregroundColor = Color.FromArgb(255, 228, 230);    // Rose-100
+                    inputBackColor = Color.FromArgb(60, 30, 45);        // Orta pembe
+                    inputForeColor = Color.FromArgb(254, 205, 211);     // Rose-200
+                    panelColor = Color.FromArgb(50, 25, 38);            // Pembe panel
+                    break;
+
+                case AppTheme.Midnight:
+                    // Midnight Theme - Gece mavisi teması
+                    backgroundColor = Color.FromArgb(10, 10, 25);       // Çok koyu lacivert
+                    foregroundColor = Color.FromArgb(199, 210, 254);    // Indigo-200
+                    inputBackColor = Color.FromArgb(25, 25, 50);        // Koyu lacivert
+                    inputForeColor = Color.FromArgb(224, 231, 255);     // Indigo-100
+                    panelColor = Color.FromArgb(20, 20, 40);            // Lacivert panel
+                    break;
+
+                case AppTheme.Light:
+                default:
+                    // Light Theme - Improved contrast
+                    backgroundColor = lightBgColor;                      // Gray-50: #F9FAFB
+                    foregroundColor = Color.FromArgb(24, 24, 27);       // Zinc-900 (koyu metin)
+                    inputBackColor = Color.White;                       // Beyaz input
+                    inputForeColor = Color.FromArgb(24, 24, 27);        // Zinc-900 (net okuma)
+                    panelColor = Color.White;                           // Beyaz panel
+                    break;
             }
 
             this.BackColor = backgroundColor;
@@ -392,6 +480,36 @@ namespace VideoDownloader
                     [AppLanguage.Turkish] = "Koyu Tema",
                     [AppLanguage.English] = "Dark Theme"
                 },
+                ["OceanTheme"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "🌊 Okyanus",
+                    [AppLanguage.English] = "🌊 Ocean"
+                },
+                ["ForestTheme"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "🌲 Orman",
+                    [AppLanguage.English] = "🌲 Forest"
+                },
+                ["SunsetTheme"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "🌅 Gün Batımı",
+                    [AppLanguage.English] = "🌅 Sunset"
+                },
+                ["PurpleTheme"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "💜 Mor Rüya",
+                    [AppLanguage.English] = "💜 Purple Dreams"
+                },
+                ["RoseTheme"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "🌹 Gül",
+                    [AppLanguage.English] = "🌹 Rose"
+                },
+                ["MidnightTheme"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "🌙 Gece Mavisi",
+                    [AppLanguage.English] = "🌙 Midnight"
+                },
                 ["Help"] = new Dictionary<AppLanguage, string>
                 {
                     [AppLanguage.Turkish] = "Yardım",
@@ -409,8 +527,8 @@ namespace VideoDownloader
                 },
                 ["AppDescription"] = new Dictionary<AppLanguage, string>
                 {
-                    [AppLanguage.Turkish] = "Video İndirici v1.4.0\n\nYouTube, Twitter ve Instagram'dan video indirme aracı",
-                    [AppLanguage.English] = "Video Downloader v1.4.0\n\nDownload videos from YouTube, Twitter and Instagram"
+                    [AppLanguage.Turkish] = "Video İndirici v1.5.0\n\nYouTube, Twitter ve Instagram'dan video indirme aracı",
+                    [AppLanguage.English] = "Video Downloader v1.5.0\n\nDownload videos from YouTube, Twitter and Instagram"
                 },
                 ["Developer"] = new Dictionary<AppLanguage, string>
                 {
@@ -441,6 +559,21 @@ namespace VideoDownloader
                 {
                     [AppLanguage.Turkish] = "İptal",
                     [AppLanguage.English] = "Cancel"
+                },
+                ["Pause"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "⏸ Duraklat",
+                    [AppLanguage.English] = "⏸ Pause"
+                },
+                ["Resume"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "▶ Devam",
+                    [AppLanguage.English] = "▶ Resume"
+                },
+                ["Paused"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "Duraklatıldı",
+                    [AppLanguage.English] = "Paused"
                 },
                 ["Downloading"] = new Dictionary<AppLanguage, string>
                 {
@@ -511,6 +644,12 @@ namespace VideoDownloader
                     {
                         currentLanguage = language;
                     }
+                    else
+                    {
+                        // İlk çalıştırmada sistem diline göre ayarla
+                        var systemCulture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+                        currentLanguage = systemCulture == "tr" ? AppLanguage.Turkish : AppLanguage.English;
+                    }
 
                     var themeValue = key?.GetValue("Theme")?.ToString();
                     if (Enum.TryParse<AppTheme>(themeValue, out var theme))
@@ -519,7 +658,12 @@ namespace VideoDownloader
                     }
                 }
             }
-            catch { }
+            catch 
+            {
+                // Hata durumunda sistem diline göre ayarla
+                var systemCulture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+                currentLanguage = systemCulture == "tr" ? AppLanguage.Turkish : AppLanguage.English;
+            }
         }
 
         private void SaveSettings()
@@ -562,11 +706,27 @@ namespace VideoDownloader
             var themeMenu = new ToolStripMenuItem(GetText("Theme"));
             var lightThemeMenuItem = new ToolStripMenuItem(GetText("LightTheme"));
             var darkThemeMenuItem = new ToolStripMenuItem(GetText("DarkTheme"));
+            var oceanThemeMenuItem = new ToolStripMenuItem(GetText("OceanTheme"));
+            var forestThemeMenuItem = new ToolStripMenuItem(GetText("ForestTheme"));
+            var sunsetThemeMenuItem = new ToolStripMenuItem(GetText("SunsetTheme"));
+            var purpleThemeMenuItem = new ToolStripMenuItem(GetText("PurpleTheme"));
+            var roseThemeMenuItem = new ToolStripMenuItem(GetText("RoseTheme"));
+            var midnightThemeMenuItem = new ToolStripMenuItem(GetText("MidnightTheme"));
 
             lightThemeMenuItem.Click += (s, e) => ChangeTheme(AppTheme.Light);
             darkThemeMenuItem.Click += (s, e) => ChangeTheme(AppTheme.Dark);
+            oceanThemeMenuItem.Click += (s, e) => ChangeTheme(AppTheme.Ocean);
+            forestThemeMenuItem.Click += (s, e) => ChangeTheme(AppTheme.Forest);
+            sunsetThemeMenuItem.Click += (s, e) => ChangeTheme(AppTheme.Sunset);
+            purpleThemeMenuItem.Click += (s, e) => ChangeTheme(AppTheme.Purple);
+            roseThemeMenuItem.Click += (s, e) => ChangeTheme(AppTheme.Rose);
+            midnightThemeMenuItem.Click += (s, e) => ChangeTheme(AppTheme.Midnight);
 
-            themeMenu.DropDownItems.AddRange(new ToolStripItem[] { lightThemeMenuItem, darkThemeMenuItem });
+            themeMenu.DropDownItems.AddRange(new ToolStripItem[] { 
+                lightThemeMenuItem, darkThemeMenuItem, new ToolStripSeparator(),
+                oceanThemeMenuItem, forestThemeMenuItem, sunsetThemeMenuItem, 
+                purpleThemeMenuItem, roseThemeMenuItem, midnightThemeMenuItem 
+            });
 
             // Sistem Kontrolü menü öğesi
             var systemCheckMenuItem = new ToolStripMenuItem(GetText("SystemCheck"));
@@ -1036,30 +1196,64 @@ And 1000+ more sites...";
                     var ytDlpPath = GetYtDlpPath();
                     if (string.IsNullOrEmpty(ytDlpPath)) return null;
 
-                    // FFmpeg location
+                    // FFmpeg location (check both AppContext and StartupPath for MSIX compatibility)
                     string ffmpegLocationArg = "";
-                    if (File.Exists(Path.Combine(Application.StartupPath, "ffmpeg.exe")))
+                    string appDir = AppContext.BaseDirectory;
+                    if (File.Exists(Path.Combine(appDir, "ffmpeg.exe")))
+                    {
+                        ffmpegLocationArg = $"--ffmpeg-location \"{appDir}\"";
+                    }
+                    else if (File.Exists(Path.Combine(Application.StartupPath, "ffmpeg.exe")))
                     {
                         ffmpegLocationArg = $"--ffmpeg-location \"{Application.StartupPath}\"";
                     }
 
                     // Kick ve Twitch için özel User-Agent ve headerlar
                     var extraArgs = "";
-                    if (url.Contains("kick.com") || url.Contains("twitch.tv"))
+                    if (url.Contains("kick.com"))
                     {
-                        extraArgs = "--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\" --referer \"" + url + "\"";
+                        // Kick için geliştirilmiş argümanlar
+                        extraArgs = "--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\" " +
+                                   "--add-header \"Accept:application/json\" " +
+                                   "--add-header \"Accept-Language:en-US,en;q=0.9\" " +
+                                   "--referer \"https://kick.com/\" " +
+                                   "--extractor-args \"kick:api_host=kick.com\" " +
+                                   "--no-check-certificates ";
+                    }
+                    else if (url.Contains("twitch.tv"))
+                    {
+                        extraArgs = "--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\" --referer \"" + url + "\"";
                     }
 
-                    var startInfo = new ProcessStartInfo
+                    ProcessStartInfo startInfo;
+                    if (useStandaloneYtDlp && !string.IsNullOrEmpty(standaloneYtDlpPath))
                     {
-                        FileName = "python",
-                        Arguments = $"-m yt_dlp {extraArgs} {ffmpegLocationArg} --no-download --print-json \"{url}\"",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        CreateNoWindow = true,
-                        StandardOutputEncoding = System.Text.Encoding.UTF8
-                    };
+                        // Use standalone yt-dlp.exe
+                        startInfo = new ProcessStartInfo
+                        {
+                            FileName = standaloneYtDlpPath,
+                            Arguments = $"{extraArgs} {ffmpegLocationArg} --no-download --print-json \"{url}\"",
+                            UseShellExecute = false,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            CreateNoWindow = true,
+                            StandardOutputEncoding = System.Text.Encoding.UTF8
+                        };
+                    }
+                    else
+                    {
+                        // Use Python module
+                        startInfo = new ProcessStartInfo
+                        {
+                            FileName = "python",
+                            Arguments = $"-m yt_dlp {extraArgs} {ffmpegLocationArg} --no-download --print-json \"{url}\"",
+                            UseShellExecute = false,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            CreateNoWindow = true,
+                            StandardOutputEncoding = System.Text.Encoding.UTF8
+                        };
+                    }
 
                     using var process = new Process { StartInfo = startInfo };
                     process.Start();
@@ -1350,12 +1544,84 @@ And 1000+ more sites...";
             CancelDownload();
         }
 
+        private void PauseButton_Click(object sender, EventArgs e)
+        {
+            TogglePauseDownload();
+        }
+
+        private void TogglePauseDownload()
+        {
+            if (currentDownloadProcess == null || currentDownloadProcess.HasExited)
+                return;
+
+            try
+            {
+                if (isPaused)
+                {
+                    // Resume - Devam ettir
+                    ResumeProcess(currentDownloadProcess);
+                    isPaused = false;
+                    pauseButton.Text = currentLanguage == AppLanguage.Turkish ? "⏸ Duraklat" : "⏸ Pause";
+                    pauseButton.BackColor = Color.FromArgb(234, 179, 8); // Sarı/amber renk
+                    statusLabel.Text = currentLanguage == AppLanguage.Turkish ? "Devam ediyor..." : "Resuming...";
+                }
+                else
+                {
+                    // Pause - Duraklat
+                    SuspendProcess(currentDownloadProcess);
+                    isPaused = true;
+                    pauseButton.Text = currentLanguage == AppLanguage.Turkish ? "▶ Devam" : "▶ Resume";
+                    pauseButton.BackColor = Color.FromArgb(34, 197, 94); // Yeşil renk
+                    statusLabel.Text = currentLanguage == AppLanguage.Turkish ? "Duraklatıldı" : "Paused";
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowWarning(currentLanguage == AppLanguage.Turkish ?
+                    $"Duraklatma hatası: {ex.Message}" :
+                    $"Pause error: {ex.Message}");
+            }
+        }
+
+        private void SuspendProcess(Process process)
+        {
+            foreach (ProcessThread thread in process.Threads)
+            {
+                IntPtr hThread = OpenThread(THREAD_SUSPEND_RESUME, false, (uint)thread.Id);
+                if (hThread != IntPtr.Zero)
+                {
+                    SuspendThread(hThread);
+                    CloseHandle(hThread);
+                }
+            }
+        }
+
+        private void ResumeProcess(Process process)
+        {
+            foreach (ProcessThread thread in process.Threads)
+            {
+                IntPtr hThread = OpenThread(THREAD_SUSPEND_RESUME, false, (uint)thread.Id);
+                if (hThread != IntPtr.Zero)
+                {
+                    ResumeThread(hThread);
+                    CloseHandle(hThread);
+                }
+            }
+        }
+
         private void CancelDownload()
         {
             try
             {
                 if (currentDownloadProcess != null && !currentDownloadProcess.HasExited)
                 {
+                    // Eğer duraklatılmışsa önce devam ettir, sonra öldür
+                    if (isPaused)
+                    {
+                        ResumeProcess(currentDownloadProcess);
+                        isPaused = false;
+                    }
+                    
                     isCancelled = true;
                     currentDownloadProcess.Kill();
                     currentDownloadProcess = null;
@@ -1366,6 +1632,10 @@ And 1000+ more sites...";
                     downloadButton.Enabled = true;
                     downloadButton.Text = GetText("Download");
                     statusLabel.Text = GetText("Ready");
+                    
+                    // Pause butonunu sıfırla
+                    pauseButton.Text = currentLanguage == AppLanguage.Turkish ? "⏸ Duraklat" : "⏸ Pause";
+                    pauseButton.BackColor = Color.FromArgb(234, 179, 8);
                 }
             }
             catch { }
@@ -1475,7 +1745,13 @@ And 1000+ more sites...";
             bool ffmpegInstalled = await CheckFFmpegInstalled();
             string ffmpegLocationArg = "";
             
-            if (File.Exists(Path.Combine(Application.StartupPath, "ffmpeg.exe")))
+            // Check both paths for MSIX compatibility
+            string appDir = AppContext.BaseDirectory;
+            if (File.Exists(Path.Combine(appDir, "ffmpeg.exe")))
+            {
+                ffmpegLocationArg = $"--ffmpeg-location \"{appDir}\"";
+            }
+            else if (File.Exists(Path.Combine(Application.StartupPath, "ffmpeg.exe")))
             {
                 ffmpegLocationArg = $"--ffmpeg-location \"{Application.StartupPath}\"";
             }
@@ -1494,27 +1770,53 @@ And 1000+ more sites...";
             var extraArgs = "";
             if (url.Contains("kick.com"))
             {
-                extraArgs = "--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\" --referer \"" + url + "\"";
+                // Kick için geliştirilmiş argümanlar - klip ve video desteği
+                extraArgs = "--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\" " +
+                           "--add-header \"Accept:application/json\" " +
+                           "--add-header \"Accept-Language:en-US,en;q=0.9\" " +
+                           "--referer \"https://kick.com/\" " +
+                           "--extractor-args \"kick:api_host=kick.com\" " +
+                           "--no-check-certificates " +
+                           "--hls-prefer-native ";
             }
             else if (url.Contains("twitch.tv"))
             {
                 // Twitch HLS download hatası için ffmpeg downloader kullan
-                extraArgs = "--downloader ffmpeg";
+                extraArgs = "--downloader ffmpeg " +
+                           "--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\"";
             }
-
-            var arguments = $"-m yt_dlp {extraArgs} {ffmpegLocationArg} --no-playlist {qualityArg} {subtitleArg} --embed-thumbnail --merge-output-format mp4 -o \"{Path.Combine(outputPath, "%(title)s.%(ext)s")}\" \"{url}\"";
 
             UpdateProgress(0, GetText("Downloading"));
 
-            var processInfo = new ProcessStartInfo
+            ProcessStartInfo processInfo;
+            if (useStandaloneYtDlp && !string.IsNullOrEmpty(standaloneYtDlpPath))
             {
-                FileName = "python",
-                Arguments = arguments,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
+                // Use standalone yt-dlp.exe
+                var arguments = $"{extraArgs} {ffmpegLocationArg} --continue --no-playlist {qualityArg} {subtitleArg} --embed-thumbnail --merge-output-format mp4 -o \"{Path.Combine(outputPath, "%(title)s.%(ext)s")}\" \"{url}\"";
+                processInfo = new ProcessStartInfo
+                {
+                    FileName = standaloneYtDlpPath,
+                    Arguments = arguments,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+            }
+            else
+            {
+                // Use Python module
+                var arguments = $"-m yt_dlp {extraArgs} {ffmpegLocationArg} --continue --no-playlist {qualityArg} {subtitleArg} --embed-thumbnail --merge-output-format mp4 -o \"{Path.Combine(outputPath, "%(title)s.%(ext)s")}\" \"{url}\"";
+                processInfo = new ProcessStartInfo
+                {
+                    FileName = "python",
+                    Arguments = arguments,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+            }
 
             using var process = new Process { StartInfo = processInfo };
             currentDownloadProcess = process;
@@ -1522,6 +1824,9 @@ And 1000+ more sites...";
             isPaused = false;
 
             cancelButton.Enabled = true;
+            pauseButton.Enabled = true;
+            pauseButton.Text = GetText("Pause");
+            pauseButton.BackColor = Color.FromArgb(234, 179, 8);
 
             process.OutputDataReceived += (sender, e) =>
             {
@@ -1546,6 +1851,10 @@ And 1000+ more sites...";
             await Task.Run(() => process.WaitForExit());
 
             cancelButton.Enabled = false;
+            pauseButton.Enabled = false;
+            pauseButton.Text = GetText("Pause");
+            pauseButton.BackColor = Color.FromArgb(234, 179, 8);
+            isPaused = false;
             currentDownloadProcess = null;
 
             if (process.ExitCode == 0)
@@ -1563,6 +1872,13 @@ And 1000+ more sites...";
                 {
                     Process.Start("explorer.exe", outputPath);
                 }
+            }
+            else if (isCancelled)
+            {
+                // Kullanıcı iptal etti - hata gösterme
+                UpdateProgress(0, currentLanguage == AppLanguage.Turkish ? "İptal edildi" : "Cancelled");
+                statusLabel.Text = currentLanguage == AppLanguage.Turkish ? "İndirme iptal edildi" : "Download cancelled";
+                progressPanel.Visible = false;
             }
             else
             {
@@ -1677,8 +1993,15 @@ And 1000+ more sites...";
         }
 
         // Dependency checks
+        // Track whether we're using standalone yt-dlp.exe or Python module
+        private bool useStandaloneYtDlp = false;
+        private string? standaloneYtDlpPath = null;
+
         private async Task<bool> CheckPythonInstalled()
         {
+            // If standalone yt-dlp.exe is available, Python is not required
+            if (useStandaloneYtDlp) return true;
+            
             try
             {
                 var processInfo = new ProcessStartInfo
@@ -1703,6 +2026,29 @@ And 1000+ more sites...";
 
         private async Task<bool> CheckYtDlpInstalled()
         {
+            // 1. First check for standalone yt-dlp.exe in app directory (MSIX/Portable)
+            string appDir = AppContext.BaseDirectory;
+            string ytDlpExePath = Path.Combine(appDir, "yt-dlp.exe");
+            if (File.Exists(ytDlpExePath))
+            {
+                useStandaloneYtDlp = true;
+                standaloneYtDlpPath = ytDlpExePath;
+                return true;
+            }
+            
+            // Also check Application.StartupPath for backward compatibility
+            ytDlpExePath = Path.Combine(Application.StartupPath, "yt-dlp.exe");
+            if (File.Exists(ytDlpExePath))
+            {
+                useStandaloneYtDlp = true;
+                standaloneYtDlpPath = ytDlpExePath;
+                return true;
+            }
+            
+            // 2. Fall back to Python module
+            useStandaloneYtDlp = false;
+            standaloneYtDlpPath = null;
+            
             try
             {
                 var processInfo = new ProcessStartInfo
@@ -1727,8 +2073,13 @@ And 1000+ more sites...";
 
         private string? GetYtDlpPath()
         {
-            // Python module olarak yt-dlp kullanıyoruz
-            // Bu metot python executable path'ini döndürür
+            // If standalone yt-dlp.exe is available, return its path
+            if (useStandaloneYtDlp && !string.IsNullOrEmpty(standaloneYtDlpPath))
+            {
+                return standaloneYtDlpPath;
+            }
+            
+            // Fall back to Python
             try
             {
                 var processInfo = new ProcessStartInfo
@@ -1757,6 +2108,12 @@ And 1000+ more sites...";
 
         private async Task<bool> InstallYtDlp()
         {
+            // If standalone yt-dlp.exe is being used, no need to install via pip
+            if (useStandaloneYtDlp)
+            {
+                return true;
+            }
+            
             try
             {
                 var processInfo = new ProcessStartInfo
@@ -1787,7 +2144,11 @@ And 1000+ more sites...";
         {
             try
             {
-                // 1. Check local folder
+                // 1. Check local folder (AppContext.BaseDirectory works for both normal and MSIX)
+                string appDir = AppContext.BaseDirectory;
+                if (File.Exists(Path.Combine(appDir, "ffmpeg.exe"))) return true;
+                
+                // Also check Application.StartupPath for backward compatibility
                 if (File.Exists(Path.Combine(Application.StartupPath, "ffmpeg.exe"))) return true;
 
                 // 2. Check PATH

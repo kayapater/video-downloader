@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2B-blue)](https://www.microsoft.com/windows)
-[![Release](https://img.shields.io/badge/Release-v1.4.0-512BD4)](https://github.com/kayapater/video-downloader/releases)
+[![Release](https://img.shields.io/badge/Release-v1.5.0-512BD4)](https://github.com/kayapater/video-downloader/releases)
 [![Downloads](https://img.shields.io/github/downloads/kayapater/video-downloader/total?label=Downloads&color=blue)](https://github.com/kayapater/video-downloader/releases)
 
 </div>
@@ -18,23 +18,25 @@
 
 Video Downloader is a powerful and user-friendly Windows application that allows you to download videos from YouTube, Twitter, Instagram, TikTok, Facebook, and 50+ platforms.
 
-### ✨ What's New in v1.4.0
+### ✨ What's New in v1.5.0
 
-- **System Check** - Verify dependencies from Settings menu
-- **Auto yt-dlp** - Automatically installs on startup if missing
-- **Twitch & Kick** - Fixed download issues
-- **New UI** - Modernized interface design
+#### 🎨 New Color Themes
+- 6 beautiful new themes: Ocean, Forest, Sunset, Purple Dreams, Rose, and Midnight
+- Each theme with carefully crafted color palettes for optimal readability
+
+#### ⏸️ Pause & Resume Downloads
+- Pause and resume your downloads anytime
+- Windows API integration for reliable process control
+
+#### 🔧 Improvements
+- **Kick.com Support Fixed** - Better headers and extractor settings
+- **Twitch Improvements** - HLS stream handling with ffmpeg downloader
+- **Updated User-Agent** - Chrome 122 compatibility
+- **Resume Interrupted Downloads** - Continue downloads with --continue flag
+- **Auto Language Detection** - Detects system language on first run
+- **New Default Folder** - Downloads save to Videos/Video Downloader
 
 ---
-
-### ✨ What's New in v1.3.3
-
-#### 🔧 Installer Improvements
--  **WiX Toolset** based MSI installer (official Microsoft technology)
--  Full **winget** support with automatic PATH management
--  Automatic upgrade support for future versions
--  Clean and complete uninstall process
--  Improved dependency management
 
 ### 🎯 Features
 
@@ -47,9 +49,10 @@ Video Downloader is a powerful and user-friendly Windows application that allows
 
 #### 🎨 User Interface
 - Modern and clean design
-- Dark and light theme
+- **8 beautiful themes** (Light, Dark, Ocean, Forest, Sunset, Purple, Rose, Midnight)
 - Turkish and English language support
 - Simple and clear progress display
+- Pause and resume downloads
 
 #### ⚙️ Technical
 - .NET 8.0 Windows Forms
@@ -68,7 +71,7 @@ winget install kayapater.VideoDownloader
 
 **Specific version:**
 ```powershell
-winget install kayapater.VideoDownloader --version 1.4.0
+winget install kayapater.VideoDownloader --version 1.5.0
 ```
 
 **Upgrade:**
@@ -88,7 +91,7 @@ winget install kayapater.VideoDownloader --silent --accept-package-agreements --
 
 #### Manual Installation
 
-1. Download `VideoDownloader-v1.3.3-Setup.msi` from [Releases](https://github.com/kayapater/video-downloader/releases/latest)
+1. Download `VideoDownloader-v1.5.0-Setup.msi` from [Releases](https://github.com/kayapater/video-downloader/releases/latest)
 2. Run the MSI file
 3. Follow the installation wizard
 4. Required dependencies will be installed automatically
@@ -96,10 +99,10 @@ winget install kayapater.VideoDownloader --silent --accept-package-agreements --
 **Silent installation (MSI):**
 ```powershell
 # Completely silent
-msiexec /i VideoDownloader-v1.3.3-Setup.msi /quiet /norestart
+msiexec /i VideoDownloader-v1.5.0-Setup.msi /quiet /norestart
 
 # With progress bar
-msiexec /i VideoDownloader-v1.3.3-Setup.msi /passive /norestart
+msiexec /i VideoDownloader-v1.5.0-Setup.msi /passive /norestart
 ```
 
 ### 🛠️ Development
@@ -130,23 +133,6 @@ dotnet build -c Release
 dotnet publish -c Release -r win-x64 --self-contained false
 ```
 
-#### Creating MSI Installer
-
-```powershell
-cd WixInstaller
-
-# Create images
-.\create-placeholder-images.ps1
-
-# Download Python installer
-Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.13.5/python-3.13.5-amd64.exe" -OutFile "python-3.13.5-amd64.exe"
-
-# Build MSI
-.\build.ps1 -DownloadPython
-```
-
-For detailed information: [WixInstaller/README.md](WixInstaller/README.md)
-
 ### 🌍 Supported Platforms
 
 <details>
@@ -159,6 +145,7 @@ For detailed information: [WixInstaller/README.md](WixInstaller/README.md)
 - Twitter/X
 - Facebook
 - Twitch
+- Kick
 - Vimeo
 - Dailymotion
 - Reddit
@@ -224,4 +211,3 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ⭐ Star this repo if you find it helpful!
 
 </div>
-

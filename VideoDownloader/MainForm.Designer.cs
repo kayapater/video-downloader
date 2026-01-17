@@ -39,6 +39,7 @@ namespace VideoDownloader
             progressBar = new ProgressBar();
             progressLabel = new Label();
             speedLabel = new Label();
+            pauseButton = new RoundedButton();
             cancelButton = new RoundedButton();
             statusLabel = new Label();
             signatureLabel = new Label();
@@ -66,7 +67,7 @@ namespace VideoDownloader
             urlTextBox.ForeColor = Color.FromArgb(244, 244, 245);
             urlTextBox.Location = new Point(30, 60);
             urlTextBox.Name = "urlTextBox";
-            urlTextBox.PlaceholderText = "📋 Buraya yapıştır";
+            urlTextBox.PlaceholderText = "📋 Paste here";
             urlTextBox.Size = new Size(380, 32);
             urlTextBox.TabIndex = 0;
             urlTextBox.TextChanged += UrlTextBox_TextChanged;
@@ -82,7 +83,7 @@ namespace VideoDownloader
             pasteButton.Name = "pasteButton";
             pasteButton.Size = new Size(105, 36);
             pasteButton.TabIndex = 1;
-            pasteButton.Text = "📋 Yapıştır";
+            pasteButton.Text = "📋 Paste";
             pasteButton.UseVisualStyleBackColor = false;
             pasteButton.Click += PasteButton_Click;
             // 
@@ -180,7 +181,7 @@ namespace VideoDownloader
             previewLoadingLabel.Name = "previewLoadingLabel";
             previewLoadingLabel.Size = new Size(690, 25);
             previewLoadingLabel.TabIndex = 4;
-            previewLoadingLabel.Text = "Video bilgileri yükleniy or...";
+            previewLoadingLabel.Text = "Loading video info...";
             previewLoadingLabel.TextAlign = ContentAlignment.MiddleCenter;
             previewLoadingLabel.Visible = false;
             // 
@@ -217,7 +218,7 @@ namespace VideoDownloader
             subtitleCheckBox.Name = "subtitleCheckBox";
             subtitleCheckBox.Size = new Size(122, 27);
             subtitleCheckBox.TabIndex = 6;
-            subtitleCheckBox.Text = "Altyazı İndir";
+            subtitleCheckBox.Text = "Download Subtitles";
             subtitleCheckBox.UseVisualStyleBackColor = true;
             // 
             // pathLabel
@@ -229,7 +230,7 @@ namespace VideoDownloader
             pathLabel.Name = "pathLabel";
             pathLabel.Size = new Size(148, 25);
             pathLabel.TabIndex = 7;
-            pathLabel.Text = "İndirme Klasörü";
+            pathLabel.Text = "Download Folder";
             // 
             // pathTextBox
             // 
@@ -254,7 +255,7 @@ namespace VideoDownloader
             browseButton.Name = "browseButton";
             browseButton.Size = new Size(115, 34);
             browseButton.TabIndex = 8;
-            browseButton.Text = "📁 Gözat";
+            browseButton.Text = "📁 Browse";
             browseButton.UseVisualStyleBackColor = false;
             browseButton.Click += BrowseButton_Click;
             // 
@@ -269,7 +270,7 @@ namespace VideoDownloader
             downloadButton.Name = "downloadButton";
             downloadButton.Size = new Size(710, 55);
             downloadButton.TabIndex = 9;
-            downloadButton.Text = "↓ İndir";
+            downloadButton.Text = "⬇️ Download";
             downloadButton.UseVisualStyleBackColor = false;
             downloadButton.Click += DownloadButton_Click;
             // 
@@ -279,6 +280,7 @@ namespace VideoDownloader
             progressPanel.Controls.Add(progressBar);
             progressPanel.Controls.Add(progressLabel);
             progressPanel.Controls.Add(speedLabel);
+            progressPanel.Controls.Add(pauseButton);
             progressPanel.Controls.Add(cancelButton);
             progressPanel.Location = new Point(30, 390);
             progressPanel.Name = "progressPanel";
@@ -313,7 +315,7 @@ namespace VideoDownloader
             speedLabel.Name = "speedLabel";
             speedLabel.Size = new Size(500, 20);
             speedLabel.TabIndex = 2;
-            speedLabel.Text = "İndiriliyor...";
+            speedLabel.Text = "Downloading...";
             // 
             // cancelButton
             // 
@@ -326,9 +328,24 @@ namespace VideoDownloader
             cancelButton.Name = "cancelButton";
             cancelButton.Size = new Size(75, 28);
             cancelButton.TabIndex = 1;
-            cancelButton.Text = "İptal";
+            cancelButton.Text = "Cancel";
             cancelButton.UseVisualStyleBackColor = false;
             cancelButton.Click += CancelButton_Click;
+            // 
+            // pauseButton
+            // 
+            pauseButton.BackColor = Color.FromArgb(234, 179, 8);
+            pauseButton.BorderRadius = 8;
+            pauseButton.FlatStyle = FlatStyle.Flat;
+            pauseButton.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
+            pauseButton.ForeColor = Color.White;
+            pauseButton.Location = new Point(530, 38);
+            pauseButton.Name = "pauseButton";
+            pauseButton.Size = new Size(85, 28);
+            pauseButton.TabIndex = 3;
+            pauseButton.Text = "⏸ Pause";
+            pauseButton.UseVisualStyleBackColor = false;
+            pauseButton.Click += PauseButton_Click;
             // 
             // statusLabel
             // 
@@ -339,7 +356,7 @@ namespace VideoDownloader
             statusLabel.Name = "statusLabel";
             statusLabel.Size = new Size(300, 25);
             statusLabel.TabIndex = 11;
-            statusLabel.Text = "Hazır";
+            statusLabel.Text = "Ready";
             statusLabel.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // signatureLabel
@@ -383,7 +400,7 @@ namespace VideoDownloader
             MinimumSize = new Size(788, 505);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "Video İndirici";
+            Text = "Video Downloader";
             FormClosing += MainForm_FormClosing;
             Load += MainForm_Load;
             KeyDown += MainForm_KeyDown;
@@ -419,6 +436,7 @@ namespace VideoDownloader
         private Label progressLabel;
         private Label speedLabel;
         private RoundedButton cancelButton;
+        private RoundedButton pauseButton;
         private Label statusLabel;
         private Label signatureLabel;
     }
