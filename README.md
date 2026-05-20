@@ -73,14 +73,16 @@ winget install kayapater.VideoDownloader
 #### Manual Installation (WiX Installer)
 1. Download the latest `VideoDownloader-v1.6.0-Setup.msi` from the [Releases](https://github.com/kayapater/video-downloader/releases/latest) page.
 2. Run the MSI installer.
-3. The application will automatically check for required dependencies (Python, yt-dlp, FFmpeg) on first launch and guide you through installation if anything is missing.
+3. Installer includes bundled `yt-dlp.exe` and `FFmpeg` binaries (`ffmpeg/ffprobe/ffplay`) for offline-ready usage.
+4. On startup, the app uses bundled tools first and only falls back to Python/pip-based install when standalone `yt-dlp.exe` is not available.
 
 ---
 
 ### 🏗️ Architectural Refactoring (SOLID)
 - **Modular Design:** Migrated from a monolithic `MainForm.cs` to a modular **Service/Strategy pattern**.
 - **WiX Toolset Integration:** Switched to WiX for creating professional, Winget-compatible MSI installers.
-- **Smart Dependency Management:** Improved system for detecting and auto-installing/updating `yt-dlp` (including dev versions for Kick support) and `FFmpeg`.
+- **Smart Dependency Management:** Improved system for detecting and auto-installing pinned `yt-dlp` and `FFmpeg` dependencies.
+- **Pinned Dependency Versions:** Bundled `yt-dlp` and `FFmpeg` versions are declared in `VideoDownloader/DependencyVersions.cs` and exported into `bundled-dependencies.json` during packaging.
 
 
 ### 🛠️ Development
@@ -104,11 +106,11 @@ dotnet restore
 # Debug build
 dotnet build -c Debug
 
-# Release build
-dotnet build -c Release
+# Prepare publish folder with bundled yt-dlp + ffmpeg binaries
+powershell -ExecutionPolicy Bypass -File .\scripts\Prepare-BundledPublish.ps1
 
-# Publish (self-contained)
-dotnet publish -c Release -r win-x64 --self-contained false
+# Build MSI (WiX)
+dotnet build .\VideoDownloader.Setup\VideoDownloader.Setup.wixproj -c Release
 ```
 
 ### 🌍 Supported Platforms

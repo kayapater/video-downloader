@@ -51,6 +51,21 @@
       <Component Guid="c9d0e1f2-a3b4-4567-2345-901234567890">
         <File Source="..\VideoDownloader\publish\VideoDownloader.deps.json" />
       </Component>
+      <Component Guid="d0e1f2a3-b4c5-4678-3456-012345678901">
+        <File Source="..\VideoDownloader\publish\yt-dlp.exe" />
+      </Component>
+      <Component Guid="e1f2a3b4-c5d6-4789-4567-123456789012">
+        <File Source="..\VideoDownloader\publish\ffmpeg.exe" />
+      </Component>
+      <Component Guid="f2a3b4c5-d6e7-4890-5678-234567890123">
+        <File Source="..\VideoDownloader\publish\ffprobe.exe" />
+      </Component>
+      <Component Guid="a3b4c5d6-e7f8-4901-6789-345678901234">
+        <File Source="..\VideoDownloader\publish\ffplay.exe" />
+      </Component>
+      <Component Guid="b4c5d6e7-f809-4012-7890-456789012345">
+        <File Source="..\VideoDownloader\publish\bundled-dependencies.json" />
+      </Component>
     </ComponentGroup>
   </Fragment>
 </Wix>

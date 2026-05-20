@@ -810,22 +810,22 @@ namespace VideoDownloader
             };
 
             var featuresText = currentLanguage == AppLanguage.Turkish ?
-                @"Bu uygulama ile:
+                $@"Bu uygulama ile:
 • YouTube, Twitter, Instagram videoları
 • TikTok, Facebook, Vimeo ve daha fazlası
 • Farklı kalite seçenekleri (4K, 1080p, 720p)
 • MP3 olarak ses indirme
 • Altyazı indirme desteği
 
-Teknolojiler: .NET 8.0, yt-dlp, FFmpeg" :
-                @"With this app:
+Teknolojiler: .NET 8.0, yt-dlp {DependencyVersions.YtDlp}, FFmpeg {DependencyVersions.FFmpeg}" :
+                $@"With this app:
 • YouTube, Twitter, Instagram videos
 • TikTok, Facebook, Vimeo and more
 • Different quality options (4K, 1080p, 720p)
 • Download audio as MP3
 • Subtitle download support
 
-Technologies: .NET 8.0, yt-dlp, FFmpeg";
+Technologies: .NET 8.0, yt-dlp {DependencyVersions.YtDlp}, FFmpeg {DependencyVersions.FFmpeg}";
 
             var featuresLabel = new Label
             {
@@ -1037,28 +1037,38 @@ And 1000+ more sites...";
             // Kontrolleri başlat
             checkForm.Shown += async (s, args) =>
             {
-                // Python kontrolü
-                var pythonOk = await CheckPythonInstalled();
-                pythonLabel.Text = pythonOk 
-                    ? (currentLanguage == AppLanguage.Turkish ? "✅ Python kurulu" : "✅ Python installed")
-                    : (currentLanguage == AppLanguage.Turkish ? "❌ Python bulunamadı" : "❌ Python not found");
-                pythonLabel.ForeColor = pythonOk ? successColor : errorColor;
-
-                if (!pythonOk)
-                {
-                    statusLabel.Text = currentLanguage == AppLanguage.Turkish 
-                        ? "Python gerekli! python.org adresinden indirin." 
-                        : "Python required! Download from python.org";
-                    statusLabel.ForeColor = errorColor;
-                    return;
-                }
-
                 // yt-dlp kontrolü
                 var ytdlpOk = await CheckYtDlpInstalled();
+                var pythonOk = ytdlpOk || await CheckPythonInstalled();
+
+                if (ytdlpOk)
+                {
+                    pythonLabel.Text = currentLanguage == AppLanguage.Turkish
+                        ? "✅ Python gerekmez (standalone yt-dlp)"
+                        : "✅ Python not required (standalone yt-dlp)";
+                    pythonLabel.ForeColor = successColor;
+                }
+                else
+                {
+                    pythonLabel.Text = pythonOk
+                        ? (currentLanguage == AppLanguage.Turkish ? "✅ Python kurulu" : "✅ Python installed")
+                        : (currentLanguage == AppLanguage.Turkish ? "❌ Python bulunamadı" : "❌ Python not found");
+                    pythonLabel.ForeColor = pythonOk ? successColor : errorColor;
+                }
+
                 ytdlpLabel.Text = ytdlpOk 
                     ? (currentLanguage == AppLanguage.Turkish ? "✅ yt-dlp kurulu" : "✅ yt-dlp installed")
                     : (currentLanguage == AppLanguage.Turkish ? "❌ yt-dlp bulunamadı" : "❌ yt-dlp not found");
                 ytdlpLabel.ForeColor = ytdlpOk ? successColor : errorColor;
+
+                if (!pythonOk)
+                {
+                    statusLabel.Text = currentLanguage == AppLanguage.Turkish
+                        ? "Python gerekli! python.org adresinden indirin."
+                        : "Python required! Download from python.org";
+                    statusLabel.ForeColor = errorColor;
+                    return;
+                }
 
                 if (!ytdlpOk)
                 {
@@ -1572,17 +1582,16 @@ And 1000+ more sites...";
 
             UpdateProgress(5, currentLanguage == AppLanguage.Turkish ? "Başlatılıyor..." : "Starting...");
 
-            // Check dependencies
-            if (!await CheckPythonInstalled())
-            {
-                ShowCriticalError(currentLanguage == AppLanguage.Turkish ?
-                    "Python bulunamadı!\n\nLütfen Python'u kurun: https://www.python.org/downloads/" :
-                    "Python not found!\n\nPlease install Python: https://www.python.org/downloads/");
-                return;
-            }
-
             if (!await CheckYtDlpInstalled())
             {
+                if (!await CheckPythonInstalled())
+                {
+                    ShowCriticalError(currentLanguage == AppLanguage.Turkish ?
+                        "Python bulunamadı!\n\nLütfen Python'u kurun: https://www.python.org/downloads/" :
+                        "Python not found!\n\nPlease install Python: https://www.python.org/downloads/");
+                    return;
+                }
+
                 UpdateProgress(25, currentLanguage == AppLanguage.Turkish ? "yt-dlp kuruluyor..." : "Installing yt-dlp...");
                 if (!await InstallYtDlp())
                 {
@@ -1731,10 +1740,35 @@ And 1000+ more sites...";
         private bool useStandaloneYtDlp = false;
         private string? standaloneYtDlpPath = null;
 
+        private bool TryUseStandaloneYtDlp()
+        {
+            string appDir = AppContext.BaseDirectory;
+            string ytDlpExePath = Path.Combine(appDir, "yt-dlp.exe");
+            if (File.Exists(ytDlpExePath))
+            {
+                useStandaloneYtDlp = true;
+                standaloneYtDlpPath = ytDlpExePath;
+                return true;
+            }
+
+            // Backward compatibility for older install locations
+            ytDlpExePath = Path.Combine(Application.StartupPath, "yt-dlp.exe");
+            if (File.Exists(ytDlpExePath))
+            {
+                useStandaloneYtDlp = true;
+                standaloneYtDlpPath = ytDlpExePath;
+                return true;
+            }
+
+            useStandaloneYtDlp = false;
+            standaloneYtDlpPath = null;
+            return false;
+        }
+
         private async Task<bool> CheckPythonInstalled()
         {
             // If standalone yt-dlp.exe is available, Python is not required
-            if (useStandaloneYtDlp) return true;
+            if (TryUseStandaloneYtDlp()) return true;
             
             try
             {
@@ -1760,28 +1794,10 @@ And 1000+ more sites...";
 
         private async Task<bool> CheckYtDlpInstalled()
         {
-            // 1. First check for standalone yt-dlp.exe in app directory (MSIX/Portable)
-            string appDir = AppContext.BaseDirectory;
-            string ytDlpExePath = Path.Combine(appDir, "yt-dlp.exe");
-            if (File.Exists(ytDlpExePath))
-            {
-                useStandaloneYtDlp = true;
-                standaloneYtDlpPath = ytDlpExePath;
-                return true;
-            }
-            
-            // Also check Application.StartupPath for backward compatibility
-            ytDlpExePath = Path.Combine(Application.StartupPath, "yt-dlp.exe");
-            if (File.Exists(ytDlpExePath))
-            {
-                useStandaloneYtDlp = true;
-                standaloneYtDlpPath = ytDlpExePath;
-                return true;
-            }
-            
+            // 1. First check for bundled standalone yt-dlp.exe
+            if (TryUseStandaloneYtDlp()) return true;
+
             // 2. Fall back to Python module
-            useStandaloneYtDlp = false;
-            standaloneYtDlpPath = null;
             
             try
             {
@@ -1808,7 +1824,7 @@ And 1000+ more sites...";
         private string? GetYtDlpPath()
         {
             // If standalone yt-dlp.exe is available, return its path
-            if (useStandaloneYtDlp && !string.IsNullOrEmpty(standaloneYtDlpPath))
+            if (TryUseStandaloneYtDlp() && !string.IsNullOrEmpty(standaloneYtDlpPath))
             {
                 return standaloneYtDlpPath;
             }
@@ -1843,7 +1859,7 @@ And 1000+ more sites...";
         private async Task<bool> InstallYtDlp()
         {
             // If standalone yt-dlp.exe is being used, no need to install via pip
-            if (useStandaloneYtDlp)
+            if (TryUseStandaloneYtDlp())
             {
                 return true;
             }
@@ -1868,7 +1884,7 @@ And 1000+ more sites...";
                 var processInfo = new ProcessStartInfo
                 {
                     FileName = "python",
-                    Arguments = "-m pip install --upgrade --pre yt-dlp",
+                    Arguments = $"-m pip install --upgrade yt-dlp=={DependencyVersions.YtDlp}",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -1973,18 +1989,18 @@ And 1000+ more sites...";
             {
                 statusLabel.Text = GetText("CheckingDependencies");
 
-                // Python kontrolü
-                var pythonOk = await CheckPythonInstalled();
-                if (!pythonOk)
-                {
-                    statusLabel.Text = GetText("PythonNotFound");
-                    return;
-                }
-
                 // yt-dlp kontrolü
                 var ytdlpOk = await CheckYtDlpInstalled();
                 if (!ytdlpOk)
                 {
+                    // Standalone yoksa Python gerekli
+                    var pythonOk = await CheckPythonInstalled();
+                    if (!pythonOk)
+                    {
+                        statusLabel.Text = GetText("PythonNotFound");
+                        return;
+                    }
+
                     statusLabel.Text = GetText("InstallingYtDlp");
                     
                     var installed = await InstallYtDlp();
