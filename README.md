@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2B-blue)](https://www.microsoft.com/windows)
-[![Release](https://img.shields.io/badge/Release-v1.5.0-512BD4)](https://github.com/kayapater/video-downloader/releases)
+[![Release](https://img.shields.io/badge/Release-v1.6.0-512BD4)](https://github.com/kayapater/video-downloader/releases)
 [![Downloads](https://img.shields.io/github/downloads/kayapater/video-downloader/total?label=Downloads&color=blue)](https://github.com/kayapater/video-downloader/releases)
 
 </div>
@@ -18,23 +18,25 @@
 
 Video Downloader is a powerful and user-friendly Windows application that allows you to download videos from YouTube, Twitter, Instagram, TikTok, Facebook, and 50+ platforms.
 
-### ✨ What's New in v1.5.0
+### ✨ What's New in v1.6.0
 
-#### 🎨 New Color Themes
-- 6 beautiful new themes: Ocean, Forest, Sunset, Purple Dreams, Rose, and Midnight
-- Each theme with carefully crafted color palettes for optimal readability
+#### 🎯 Full Kick.com Support
+- Download Kick VODs, Clips, and Livestreams with ease.
+- Improved Cloudflare bypass using `--impersonate chrome` and updated extractor arguments.
 
-#### ⏸️ Pause & Resume Downloads
-- Pause and resume your downloads anytime
-- Windows API integration for reliable process control
+#### 🏗️ Architectural Refactoring (SOLID)
+- Migrated from a monolithic structure to a modular **Service/Strategy pattern**.
+- Codebase is now more maintainable, testable, and robust.
 
-#### 🔧 Improvements
-- **Kick.com Support Fixed** - Better headers and extractor settings
-- **Twitch Improvements** - HLS stream handling with ffmpeg downloader
-- **Updated User-Agent** - Chrome 122 compatibility
-- **Resume Interrupted Downloads** - Continue downloads with --continue flag
-- **Auto Language Detection** - Detects system language on first run
-- **New Default Folder** - Downloads save to Videos/Video Downloader
+#### 🚀 UI Stability & Performance
+- Better asynchronous process management preventing UI freezes.
+- Improved progress tracking with accurate speed and percentage reporting.
+- Smart error detection and user-friendly error messages.
+
+#### 🔧 Other Improvements
+- **Updated User-Agent** - Chrome 124 compatibility.
+- **Enhanced FFmpeg Detection** - Better handling of FFmpeg in MSIX and portable environments.
+- **Dependency Management** - Automated check and installation of `yt-dlp` on startup.
 
 ---
 
@@ -60,50 +62,26 @@ Video Downloader is a powerful and user-friendly Windows application that allows
 - FFmpeg (video/audio processing)
 - Automatic dependency management
 
-### 📦 Installation
+### 📦 Installation (v1.6.0+)
 
-#### Via Winget (Recommended)
-
-**Install:**
+#### Via Microsoft Winget (Recommended)
+You can install or update Video Downloader directly from the Windows Package Manager:
 ```powershell
 winget install kayapater.VideoDownloader
 ```
 
-**Specific version:**
-```powershell
-winget install kayapater.VideoDownloader --version 1.5.0
-```
+#### Manual Installation (WiX Installer)
+1. Download the latest `VideoDownloader-v1.6.0-Setup.msi` from the [Releases](https://github.com/kayapater/video-downloader/releases/latest) page.
+2. Run the MSI installer.
+3. The application will automatically check for required dependencies (Python, yt-dlp, FFmpeg) on first launch and guide you through installation if anything is missing.
 
-**Upgrade:**
-```powershell
-winget upgrade kayapater.VideoDownloader
-```
+---
 
-**Uninstall:**
-```powershell
-winget uninstall kayapater.VideoDownloader
-```
+### 🏗️ Architectural Refactoring (SOLID)
+- **Modular Design:** Migrated from a monolithic `MainForm.cs` to a modular **Service/Strategy pattern**.
+- **WiX Toolset Integration:** Switched to WiX for creating professional, Winget-compatible MSI installers.
+- **Smart Dependency Management:** Improved system for detecting and auto-installing/updating `yt-dlp` (including dev versions for Kick support) and `FFmpeg`.
 
-**Silent installation (winget):**
-```powershell
-winget install kayapater.VideoDownloader --silent --accept-package-agreements --accept-source-agreements
-```
-
-#### Manual Installation
-
-1. Download `VideoDownloader-v1.5.0-Setup.msi` from [Releases](https://github.com/kayapater/video-downloader/releases/latest)
-2. Run the MSI file
-3. Follow the installation wizard
-4. Required dependencies will be installed automatically
-
-**Silent installation (MSI):**
-```powershell
-# Completely silent
-msiexec /i VideoDownloader-v1.5.0-Setup.msi /quiet /norestart
-
-# With progress bar
-msiexec /i VideoDownloader-v1.5.0-Setup.msi /passive /norestart
-```
 
 ### 🛠️ Development
 
