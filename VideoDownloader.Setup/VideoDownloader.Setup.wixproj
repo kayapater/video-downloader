@@ -1,5 +1,0 @@
-<Project Sdk="WixToolset.Sdk/4.0.0">
-  <PropertyGroup>
-    <OutputName>VideoDownloader-v1.6.0-Setup</OutputName>
-  </PropertyGroup>
-</Project>
