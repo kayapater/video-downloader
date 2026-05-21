@@ -1452,8 +1452,8 @@ And 1000+ more sites...";
             else
             {
                 var errorMessage = currentLanguage == AppLanguage.Turkish ?
-                    $"İndirme başarısız!\n\n{message}\n\nURL'yi kontrol edin ve tekrar deneyin." :
-                    $"Download failed!\n\n{message}\n\nCheck the URL and try again.";
+                    $"İndirme başarısız!\n\n{message}\n\nLütfen hata detayını kontrol edip tekrar deneyin." :
+                    $"Download failed!\n\n{message}\n\nPlease check the error details and try again.";
                 ShowCriticalError(errorMessage);
                 statusLabel.Text = currentLanguage == AppLanguage.Turkish ? "İndirme başarısız!" : "Download failed!";
             }
@@ -1608,11 +1608,30 @@ And 1000+ more sites...";
             
             if (File.Exists(Path.Combine(appDir, "ffmpeg.exe"))) ffmpegPath = appDir;
             else if (File.Exists(Path.Combine(Application.StartupPath, "ffmpeg.exe"))) ffmpegPath = Application.StartupPath;
-            else if (!ffmpegInstalled && (url.Contains("twitch.tv") || url.Contains("kick.com")))
+
+            bool ffmpegAvailable = ffmpegInstalled || !string.IsNullOrEmpty(ffmpegPath);
+
+            if (!ffmpegAvailable && !isVideoMode)
             {
-                 ShowWarning(currentLanguage == AppLanguage.Turkish ? 
-                    "FFmpeg bulunamadı! Twitch ve Kick indirmeleri için FFmpeg gereklidir." :
-                    "FFmpeg not found! FFmpeg is required for Twitch and Kick downloads.");
+                ShowCriticalError(currentLanguage == AppLanguage.Turkish
+                    ? "FFmpeg bulunamadı! MP3 indirme için FFmpeg gereklidir."
+                    : "FFmpeg not found! FFmpeg is required for MP3 download.");
+                return;
+            }
+
+            if (!ffmpegAvailable && url.Contains("twitch.tv", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowCriticalError(currentLanguage == AppLanguage.Turkish
+                    ? "FFmpeg bulunamadı! Twitch indirmeleri için FFmpeg gereklidir."
+                    : "FFmpeg not found! FFmpeg is required for Twitch downloads.");
+                return;
+            }
+
+            if (!ffmpegAvailable)
+            {
+                ShowWarning(currentLanguage == AppLanguage.Turkish
+                    ? "FFmpeg bulunamadı. İndirme devam edecek ancak küçük resim gömme/format birleştirme devre dışı bırakıldı."
+                    : "FFmpeg not found. Download will continue, but thumbnail embedding/format merge has been disabled.");
             }
 
             var qualityArg = GetQualityArgument();
@@ -1629,7 +1648,8 @@ And 1000+ more sites...";
                 subtitleCheckBox.Checked, 
                 useStandaloneYtDlp, 
                 standaloneYtDlpPath, 
-                ffmpegPath
+                ffmpegPath,
+                ffmpegAvailable
             );
         }
 

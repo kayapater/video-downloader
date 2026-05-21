@@ -17,6 +17,7 @@ namespace VideoDownloader.Services
         private Process _currentProcess;
         private bool _isCancelled;
         private bool _isPaused;
+        private string _lastErrorLine = string.Empty;
 
         public event Action<string> OutputReceived;
         public event Action<double, string> ProgressChanged;
@@ -109,21 +110,23 @@ namespace VideoDownloader.Services
             }, token);
         }
 
-        public async Task DownloadAsync(string url, string outputPath, string qualityArg, bool downloadSubs, bool useStandalone, string standalonePath, string ffmpegPath)
+        public async Task DownloadAsync(string url, string outputPath, string qualityArg, bool downloadSubs, bool useStandalone, string standalonePath, string ffmpegPath, bool ffmpegAvailable)
         {
             _isCancelled = false;
             _isPaused = false;
+            _lastErrorLine = string.Empty;
 
             var strategy = _strategies.FirstOrDefault(s => s.CanHandle(url)) ?? new DefaultStrategy();
             string extraArgs = strategy.GetExtraArguments(url);
             
             string ffmpegArg = !string.IsNullOrEmpty(ffmpegPath) ? $"--ffmpeg-location \"{ffmpegPath}\"" : "";
             string subtitleArg = downloadSubs ? "--embed-subs --write-auto-sub" : "";
+            string postProcessArg = ffmpegAvailable ? "--embed-thumbnail --merge-output-format mp4" : "";
             
             string fileName = useStandalone ? standalonePath : "python";
             string arguments = useStandalone 
-                ? $"{extraArgs} {ffmpegArg} --continue --no-playlist {qualityArg} {subtitleArg} --embed-thumbnail --merge-output-format mp4 -o \"{Path.Combine(outputPath, "%(title)s.%(ext)s")}\" \"{url}\""
-                : $"-m yt_dlp {extraArgs} {ffmpegArg} --continue --no-playlist {qualityArg} {subtitleArg} --embed-thumbnail --merge-output-format mp4 -o \"{Path.Combine(outputPath, "%(title)s.%(ext)s")}\" \"{url}\"";
+                ? $"{extraArgs} {ffmpegArg} --continue --no-playlist {qualityArg} {subtitleArg} {postProcessArg} -o \"{Path.Combine(outputPath, "%(title)s.%(ext)s")}\" \"{url}\""
+                : $"-m yt_dlp {extraArgs} {ffmpegArg} --continue --no-playlist {qualityArg} {subtitleArg} {postProcessArg} -o \"{Path.Combine(outputPath, "%(title)s.%(ext)s")}\" \"{url}\"";
 
             var startInfo = new ProcessStartInfo
             {
@@ -151,7 +154,11 @@ namespace VideoDownloader.Services
                     
                     if (!_isCancelled)
                     {
-                        DownloadCompleted?.Invoke(_currentProcess.ExitCode == 0, _currentProcess.ExitCode == 0 ? "Success" : "Process exited with error");
+                        bool success = _currentProcess.ExitCode == 0;
+                        string message = success
+                            ? "Success"
+                            : (!string.IsNullOrWhiteSpace(_lastErrorLine) ? _lastErrorLine : "Process exited with error");
+                        DownloadCompleted?.Invoke(success, message);
                     }
                 }
                 catch (Exception ex)
@@ -171,6 +178,11 @@ namespace VideoDownloader.Services
             if (string.IsNullOrEmpty(data) || _isCancelled) return;
 
             OutputReceived?.Invoke(data);
+
+            if (data.Contains("ERROR:", StringComparison.OrdinalIgnoreCase))
+            {
+                _lastErrorLine = data.Trim();
+            }
 
             // Progress parsing logic (simplified version of what's in MainForm)
             if (data.Contains("[download]") && data.Contains("%"))
