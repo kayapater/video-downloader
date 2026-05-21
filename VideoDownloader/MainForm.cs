@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
@@ -627,6 +628,21 @@ namespace VideoDownloader
                 {
                     [AppLanguage.Turkish] = "yt-dlp kurulumu başarısız!",
                     [AppLanguage.English] = "yt-dlp installation failed!"
+                },
+                ["InstallingFFmpeg"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "FFmpeg kuruluyor...",
+                    [AppLanguage.English] = "Installing FFmpeg..."
+                },
+                ["FFmpegInstalled"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "FFmpeg başarıyla kuruldu!",
+                    [AppLanguage.English] = "FFmpeg installed successfully!"
+                },
+                ["FFmpegInstallFailed"] = new Dictionary<AppLanguage, string>
+                {
+                    [AppLanguage.Turkish] = "FFmpeg kurulumu başarısız!",
+                    [AppLanguage.English] = "FFmpeg installation failed!"
                 },
                 ["PythonNotFound"] = new Dictionary<AppLanguage, string>
                 {
@@ -1584,14 +1600,6 @@ And 1000+ more sites...";
 
             if (!await CheckYtDlpInstalled())
             {
-                if (!await CheckPythonInstalled())
-                {
-                    ShowCriticalError(currentLanguage == AppLanguage.Turkish ?
-                        "Python bulunamadı!\n\nLütfen Python'u kurun: https://www.python.org/downloads/" :
-                        "Python not found!\n\nPlease install Python: https://www.python.org/downloads/");
-                    return;
-                }
-
                 UpdateProgress(25, currentLanguage == AppLanguage.Turkish ? "yt-dlp kuruluyor..." : "Installing yt-dlp...");
                 if (!await InstallYtDlp())
                 {
@@ -1603,11 +1611,18 @@ And 1000+ more sites...";
             }
 
             bool ffmpegInstalled = await CheckFFmpegInstalled();
-            string appDir = AppContext.BaseDirectory;
             string ffmpegPath = "";
-            
-            if (File.Exists(Path.Combine(appDir, "ffmpeg.exe"))) ffmpegPath = appDir;
-            else if (File.Exists(Path.Combine(Application.StartupPath, "ffmpeg.exe"))) ffmpegPath = Application.StartupPath;
+
+            if (!ffmpegInstalled)
+            {
+                UpdateProgress(35, GetText("InstallingFFmpeg"));
+                ffmpegInstalled = await InstallFFmpeg();
+            }
+
+            if (TryGetLocalFFmpegDirectory(out var localFfmpegPath))
+            {
+                ffmpegPath = localFfmpegPath;
+            }
 
             bool ffmpegAvailable = ffmpegInstalled || !string.IsNullOrEmpty(ffmpegPath);
 
@@ -1760,8 +1775,62 @@ And 1000+ more sites...";
         private bool useStandaloneYtDlp = false;
         private string? standaloneYtDlpPath = null;
 
+        private string GetManagedToolsDirectory()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "VideoDownloader",
+                "tools"
+            );
+        }
+
+        private string GetManagedYtDlpPath()
+        {
+            return Path.Combine(GetManagedToolsDirectory(), "yt-dlp.exe");
+        }
+
+        private string GetManagedFFmpegDirectory()
+        {
+            return Path.Combine(GetManagedToolsDirectory(), $"ffmpeg-{DependencyVersions.FFmpeg}");
+        }
+
+        private bool TryGetLocalFFmpegDirectory(out string directoryPath)
+        {
+            var managedDirectory = GetManagedFFmpegDirectory();
+            if (File.Exists(Path.Combine(managedDirectory, "ffmpeg.exe")))
+            {
+                directoryPath = managedDirectory;
+                return true;
+            }
+
+            var appDirectory = AppContext.BaseDirectory;
+            if (File.Exists(Path.Combine(appDirectory, "ffmpeg.exe")))
+            {
+                directoryPath = appDirectory;
+                return true;
+            }
+
+            var startupDirectory = Application.StartupPath;
+            if (File.Exists(Path.Combine(startupDirectory, "ffmpeg.exe")))
+            {
+                directoryPath = startupDirectory;
+                return true;
+            }
+
+            directoryPath = string.Empty;
+            return false;
+        }
+
         private bool TryUseStandaloneYtDlp()
         {
+            var managedYtDlpPath = GetManagedYtDlpPath();
+            if (File.Exists(managedYtDlpPath))
+            {
+                useStandaloneYtDlp = true;
+                standaloneYtDlpPath = managedYtDlpPath;
+                return true;
+            }
+
             string appDir = AppContext.BaseDirectory;
             string ytDlpExePath = Path.Combine(appDir, "yt-dlp.exe");
             if (File.Exists(ytDlpExePath))
@@ -1884,6 +1953,44 @@ And 1000+ more sites...";
                 return true;
             }
 
+            string toolsDirectory = GetManagedToolsDirectory();
+            string targetPath = GetManagedYtDlpPath();
+            string tempPath = targetPath + ".download";
+
+            try
+            {
+                Directory.CreateDirectory(toolsDirectory);
+                string downloadUrl = $"https://github.com/yt-dlp/yt-dlp/releases/download/{DependencyVersions.YtDlp}/yt-dlp.exe";
+
+                using var response = await httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+                response.EnsureSuccessStatusCode();
+
+                await using (var sourceStream = await response.Content.ReadAsStreamAsync())
+                await using (var targetStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    await sourceStream.CopyToAsync(targetStream);
+                }
+
+                File.Move(tempPath, targetPath, true);
+                useStandaloneYtDlp = true;
+                standaloneYtDlpPath = targetPath;
+                return await CheckYtDlpInstalled();
+            }
+            catch
+            {
+                // Fallback to Python-based installation below
+            }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(tempPath)) File.Delete(tempPath);
+                }
+                catch { }
+            }
+
+            if (!await CheckPythonInstalled()) return false;
+
             try
             {
                 // First install curl-cffi for Cloudflare bypass / impersonate support
@@ -1925,16 +2032,70 @@ And 1000+ more sites...";
             return false;
         }
 
+        private async Task<bool> InstallFFmpeg()
+        {
+            if (await CheckFFmpegInstalled()) return true;
+
+            string tempRoot = Path.Combine(Path.GetTempPath(), "VideoDownloader", $"ffmpeg-{Guid.NewGuid():N}");
+            string zipPath = Path.Combine(tempRoot, "ffmpeg.zip");
+            string extractPath = Path.Combine(tempRoot, "extract");
+
+            try
+            {
+                Directory.CreateDirectory(tempRoot);
+
+                string downloadUrl = $"https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-{DependencyVersions.FFmpeg}-essentials_build.zip";
+                using var response = await httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+                response.EnsureSuccessStatusCode();
+
+                await using (var sourceStream = await response.Content.ReadAsStreamAsync())
+                await using (var targetStream = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    await sourceStream.CopyToAsync(targetStream);
+                }
+
+                ZipFile.ExtractToDirectory(zipPath, extractPath, true);
+
+                var ffmpegExePath = Directory.GetFiles(extractPath, "ffmpeg.exe", SearchOption.AllDirectories).FirstOrDefault();
+                if (string.IsNullOrEmpty(ffmpegExePath)) return false;
+
+                string sourceDirectory = Path.GetDirectoryName(ffmpegExePath) ?? string.Empty;
+                if (string.IsNullOrEmpty(sourceDirectory)) return false;
+
+                string targetDirectory = GetManagedFFmpegDirectory();
+                Directory.CreateDirectory(targetDirectory);
+
+                foreach (var tool in new[] { "ffmpeg.exe", "ffprobe.exe", "ffplay.exe" })
+                {
+                    var sourceToolPath = Path.Combine(sourceDirectory, tool);
+                    if (!File.Exists(sourceToolPath)) continue;
+
+                    var targetToolPath = Path.Combine(targetDirectory, tool);
+                    File.Copy(sourceToolPath, targetToolPath, true);
+                }
+
+                return File.Exists(Path.Combine(targetDirectory, "ffmpeg.exe"));
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                try
+                {
+                    if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, true);
+                }
+                catch { }
+            }
+        }
+
         private async Task<bool> CheckFFmpegInstalled()
         {
             try
             {
-                // 1. Check local folder (AppContext.BaseDirectory works for both normal and MSIX)
-                string appDir = AppContext.BaseDirectory;
-                if (File.Exists(Path.Combine(appDir, "ffmpeg.exe"))) return true;
-                
-                // Also check Application.StartupPath for backward compatibility
-                if (File.Exists(Path.Combine(Application.StartupPath, "ffmpeg.exe"))) return true;
+                // 1. Check managed/local folders
+                if (TryGetLocalFFmpegDirectory(out _)) return true;
 
                 // 2. Check PATH
                 var processInfo = new ProcessStartInfo
@@ -1999,7 +2160,7 @@ And 1000+ more sites...";
 
             statusLabel.Text = GetText("Ready");
 
-            // Başlangıçta yt-dlp kontrol et ve eksikse otomatik kur
+            // Başlangıçta bağımlılıkları kontrol et ve eksikse otomatik kur
             await CheckAndInstallDependenciesOnStartup();
         }
 
@@ -2013,14 +2174,6 @@ And 1000+ more sites...";
                 var ytdlpOk = await CheckYtDlpInstalled();
                 if (!ytdlpOk)
                 {
-                    // Standalone yoksa Python gerekli
-                    var pythonOk = await CheckPythonInstalled();
-                    if (!pythonOk)
-                    {
-                        statusLabel.Text = GetText("PythonNotFound");
-                        return;
-                    }
-
                     statusLabel.Text = GetText("InstallingYtDlp");
                     
                     var installed = await InstallYtDlp();
@@ -2033,12 +2186,29 @@ And 1000+ more sites...";
                     else
                     {
                         statusLabel.Text = GetText("YtDlpInstallFailed");
+                        return;
                     }
                 }
-                else
+
+                var ffmpegOk = await CheckFFmpegInstalled();
+                if (!ffmpegOk)
                 {
-                    statusLabel.Text = GetText("Ready");
+                    statusLabel.Text = GetText("InstallingFFmpeg");
+
+                    var ffmpegInstalled = await InstallFFmpeg();
+                    if (ffmpegInstalled)
+                    {
+                        statusLabel.Text = GetText("FFmpegInstalled");
+                        await Task.Delay(2000);
+                    }
+                    else
+                    {
+                        statusLabel.Text = GetText("FFmpegInstallFailed");
+                        await Task.Delay(2000);
+                    }
                 }
+
+                statusLabel.Text = GetText("Ready");
             }
             catch
             {
