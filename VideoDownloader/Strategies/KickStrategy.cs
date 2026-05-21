@@ -6,7 +6,7 @@ namespace VideoDownloader.Strategies
 
         public string GetExtraArguments(string url)
         {
-            // Kick v1.6.0 - Latest yt-dlp compatibility
+            // Kick v1.6.1 - Latest yt-dlp compatibility
             // Impersonate chrome is essential for Cloudflare bypass
             return "--impersonate chrome " +
                    "--no-check-certificates " +

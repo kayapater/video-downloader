@@ -15,8 +15,9 @@
     <AssemblyCompany>kayapater</AssemblyCompany>
     <AssemblyProduct>Video Downloader</AssemblyProduct>
     <AssemblyCopyright>Copyright © 2026 kayapater</AssemblyCopyright>
-    <AssemblyVersion>1.6.0.0</AssemblyVersion>
-    <FileVersion>1.6.0.0</FileVersion>
+    <Version>1.6.1</Version>
+    <AssemblyVersion>1.6.1.0</AssemblyVersion>
+    <FileVersion>1.6.1.0</FileVersion>
     
 
     <WindowsPackageType>None</WindowsPackageType>

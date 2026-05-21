@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2B-blue)](https://www.microsoft.com/windows)
-[![Release](https://img.shields.io/badge/Release-v1.6.0-512BD4)](https://github.com/kayapater/video-downloader/releases)
+[![Release](https://img.shields.io/badge/Release-v1.6.1-512BD4)](https://github.com/kayapater/video-downloader/releases)
 [![Downloads](https://img.shields.io/github/downloads/kayapater/video-downloader/total?label=Downloads&color=blue)](https://github.com/kayapater/video-downloader/releases)
 
 </div>
@@ -18,7 +18,15 @@
 
 Video Downloader is a powerful and user-friendly Windows application that allows you to download videos from YouTube, Twitter, Instagram, TikTok, Facebook, and 50+ platforms.
 
-### ✨ What's New in v1.6.0
+### ✨ What's New in v1.6.1
+
+#### ✅ Kick URL Parsing Fix
+- Fixed argument parsing issues that could cause valid Kick VOD URLs to fail with `is not a valid URL` errors.
+
+#### 🔧 Dependency Installation Improvements
+- Improved startup dependency flow to auto-install standalone `yt-dlp` and `FFmpeg` when missing.
+
+### 📌 Previous Highlights (v1.6.0)
 
 #### 🎯 Full Kick.com Support
 - Download Kick VODs, Clips, and Livestreams with ease.
@@ -62,7 +70,7 @@ Video Downloader is a powerful and user-friendly Windows application that allows
 - FFmpeg (video/audio processing)
 - Automatic dependency management
 
-### 📦 Installation (v1.6.0+)
+### 📦 Installation (v1.6.1+)
 
 #### Via Microsoft Winget (Recommended)
 You can install or update Video Downloader directly from the Windows Package Manager:
@@ -71,7 +79,7 @@ winget install kayapater.VideoDownloader
 ```
 
 #### Manual Installation
-1. Download the latest `VideoDownloader-v1.6.0-Setup.msi` from the [Releases](https://github.com/kayapater/video-downloader/releases/latest) page.
+1. Download the latest `VideoDownloader-v1.6.1-Setup.msi` from the [Releases](https://github.com/kayapater/video-downloader/releases/latest) page.
 2. Run the MSI installer.
 3. Installer includes bundled `yt-dlp.exe` and `FFmpeg` binaries (`ffmpeg/ffprobe/ffplay`) for offline-ready usage.
 4. On startup, the app uses bundled tools first and only falls back to Python/pip-based install when standalone `yt-dlp.exe` is not available.

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using VideoDownloader.Models;
@@ -18,6 +19,7 @@ namespace VideoDownloader.Services
         private bool _isCancelled;
         private bool _isPaused;
         private string _lastErrorLine = string.Empty;
+        private static readonly Regex ArgumentTokenizer = new Regex("\"[^\"]*\"|\\S+", RegexOptions.Compiled);
 
         public event Action<string> OutputReceived;
         public event Action<double, string> ProgressChanged;
@@ -42,33 +44,27 @@ namespace VideoDownloader.Services
                     var strategy = _strategies.FirstOrDefault(s => s.CanHandle(url)) ?? new DefaultStrategy();
                     string extraArgs = strategy.GetExtraArguments(url);
 
-                    ProcessStartInfo startInfo;
-                    if (useStandalone && !string.IsNullOrEmpty(standalonePath))
+                    bool runStandalone = useStandalone && !string.IsNullOrEmpty(standalonePath);
+                    var startInfo = new ProcessStartInfo
                     {
-                        startInfo = new ProcessStartInfo
-                        {
-                            FileName = standalonePath,
-                            Arguments = $"{extraArgs} --no-download --print-json \"{url}\"",
-                            UseShellExecute = false,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true,
-                            CreateNoWindow = true,
-                            StandardOutputEncoding = System.Text.Encoding.UTF8
-                        };
-                    }
-                    else
+                        FileName = runStandalone ? standalonePath : "python",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true,
+                        StandardOutputEncoding = System.Text.Encoding.UTF8
+                    };
+
+                    if (!runStandalone)
                     {
-                        startInfo = new ProcessStartInfo
-                        {
-                            FileName = "python",
-                            Arguments = $"-m yt_dlp {extraArgs} --no-download --print-json \"{url}\"",
-                            UseShellExecute = false,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true,
-                            CreateNoWindow = true,
-                            StandardOutputEncoding = System.Text.Encoding.UTF8
-                        };
+                        startInfo.ArgumentList.Add("-m");
+                        startInfo.ArgumentList.Add("yt_dlp");
                     }
+
+                    AddArgumentsFromString(startInfo, extraArgs);
+                    startInfo.ArgumentList.Add("--no-download");
+                    startInfo.ArgumentList.Add("--print-json");
+                    startInfo.ArgumentList.Add(url);
 
                     using var process = new Process { StartInfo = startInfo };
                     process.Start();
@@ -118,25 +114,52 @@ namespace VideoDownloader.Services
 
             var strategy = _strategies.FirstOrDefault(s => s.CanHandle(url)) ?? new DefaultStrategy();
             string extraArgs = strategy.GetExtraArguments(url);
-            
-            string ffmpegArg = !string.IsNullOrEmpty(ffmpegPath) ? $"--ffmpeg-location \"{ffmpegPath}\"" : "";
-            string subtitleArg = downloadSubs ? "--embed-subs --write-auto-sub" : "";
-            string postProcessArg = ffmpegAvailable ? "--embed-thumbnail --merge-output-format mp4" : "";
-            
-            string fileName = useStandalone ? standalonePath : "python";
-            string arguments = useStandalone 
-                ? $"{extraArgs} {ffmpegArg} --continue --no-playlist {qualityArg} {subtitleArg} {postProcessArg} -o \"{Path.Combine(outputPath, "%(title)s.%(ext)s")}\" \"{url}\""
-                : $"-m yt_dlp {extraArgs} {ffmpegArg} --continue --no-playlist {qualityArg} {subtitleArg} {postProcessArg} -o \"{Path.Combine(outputPath, "%(title)s.%(ext)s")}\" \"{url}\"";
 
+            bool runStandalone = useStandalone && !string.IsNullOrEmpty(standalonePath);
             var startInfo = new ProcessStartInfo
             {
-                FileName = fileName,
-                Arguments = arguments,
+                FileName = runStandalone ? standalonePath : "python",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true
             };
+
+            if (!runStandalone)
+            {
+                startInfo.ArgumentList.Add("-m");
+                startInfo.ArgumentList.Add("yt_dlp");
+            }
+
+            AddArgumentsFromString(startInfo, extraArgs);
+
+            if (!string.IsNullOrWhiteSpace(ffmpegPath))
+            {
+                startInfo.ArgumentList.Add("--ffmpeg-location");
+                startInfo.ArgumentList.Add(ffmpegPath);
+            }
+
+            startInfo.ArgumentList.Add("--continue");
+            startInfo.ArgumentList.Add("--no-playlist");
+
+            AddArgumentsFromString(startInfo, qualityArg);
+
+            if (downloadSubs)
+            {
+                startInfo.ArgumentList.Add("--embed-subs");
+                startInfo.ArgumentList.Add("--write-auto-sub");
+            }
+
+            if (ffmpegAvailable)
+            {
+                startInfo.ArgumentList.Add("--embed-thumbnail");
+                startInfo.ArgumentList.Add("--merge-output-format");
+                startInfo.ArgumentList.Add("mp4");
+            }
+
+            startInfo.ArgumentList.Add("-o");
+            startInfo.ArgumentList.Add(Path.Combine(outputPath, "%(title)s.%(ext)s"));
+            startInfo.ArgumentList.Add(url);
 
             _currentProcess = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
 
@@ -171,6 +194,25 @@ namespace VideoDownloader.Services
                     _currentProcess = null;
                 }
             });
+        }
+
+        private static void AddArgumentsFromString(ProcessStartInfo startInfo, string arguments)
+        {
+            if (string.IsNullOrWhiteSpace(arguments)) return;
+
+            foreach (Match match in ArgumentTokenizer.Matches(arguments))
+            {
+                var token = match.Value;
+                if (token.Length >= 2 && token.StartsWith("\"") && token.EndsWith("\""))
+                {
+                    token = token.Substring(1, token.Length - 2);
+                }
+
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    startInfo.ArgumentList.Add(token);
+                }
+            }
         }
 
         private void HandleOutput(string data)

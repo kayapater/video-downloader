@@ -536,8 +536,8 @@ namespace VideoDownloader
                 },
                 ["AppDescription"] = new Dictionary<AppLanguage, string>
                 {
-                    [AppLanguage.Turkish] = "Video İndirici v1.6.0\n\nYouTube, Twitter ve Instagram'dan video indirme aracı",
-                    [AppLanguage.English] = "Video Downloader v1.6.0\n\nDownload videos from YouTube, Twitter and Instagram"
+                    [AppLanguage.Turkish] = "Video İndirici v1.6.1\n\nYouTube, Twitter ve Instagram'dan video indirme aracı",
+                    [AppLanguage.English] = "Video Downloader v1.6.1\n\nDownload videos from YouTube, Twitter and Instagram"
                 },
                 ["Developer"] = new Dictionary<AppLanguage, string>
                 {
