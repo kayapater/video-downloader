@@ -158,10 +158,6 @@ And many more...
 
 </details>
 
-### 📸 Screenshots
-
-*(Screenshots will be added)*
-
 ### 🤝 Contributing
 
 Contributions are welcome! Please:
