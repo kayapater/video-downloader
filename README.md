@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2B-blue)](https://www.microsoft.com/windows)
-[![Release](https://img.shields.io/badge/Release-v1.7.0-512BD4)](https://github.com/kayapater/video-downloader/releases)
+[![Release](https://img.shields.io/badge/Release-v1.6.2-512BD4)](https://github.com/kayapater/video-downloader/releases)
 [![Downloads](https://img.shields.io/github/downloads/kayapater/video-downloader/total?label=Downloads&color=blue)](https://github.com/kayapater/video-downloader/releases)
 
 </div>
@@ -18,7 +18,7 @@
 
 Video Downloader is a powerful and user-friendly Windows application that allows you to download videos from YouTube, Twitter, Instagram, TikTok, Facebook, and 50+ platforms.
 
-### ✨ What's New in v1.7.0 — The Modularity Update
+### ✨ What's New in v1.6.2 — The Modularity Update
 
 #### 🏗️ Major Architectural Refactoring
 - **MainForm.cs reduced by 65%** (2300 → ~800 lines) by extracting:
